@@ -268,9 +268,6 @@ pub struct Balance {
     /// Master game speed, applied to the whole game clock.
     pub pace: f32,
     pub voyage_minutes_per_second: f32,
-    pub fast_forward: f32,
-    /// Clock speed-up after the last contact, on the counterfactual path.
-    pub past_gate_clock_factor: f32,
     pub last_contact_gate: At,
     pub final_stretch_nm: f32,
     pub north_route_wave_factor: f32,

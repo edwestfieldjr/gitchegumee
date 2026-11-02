@@ -29,6 +29,10 @@ fn apply(effect: &Effect, ship: &mut Ship, voyage: &mut Voyage, content: &Conten
 }
 
 fn run(policy: &Policy) -> Finished {
+    run_stepping(policy, 1.0)
+}
+
+fn run_stepping(policy: &Policy, step: f32) -> Finished {
     let content = real_content();
     let balance = &content.balance;
     let level = &balance.clamp_levels[policy.clamps];
@@ -87,7 +91,6 @@ fn run(policy: &Policy) -> Finished {
                 }
             }
         }
-        let step = 1.0;
         voyage.minute += step;
         let weather = sample(&content.weather, voyage.minute);
         ship.step(
@@ -189,6 +192,19 @@ fn a_near_perfect_run_can_reach_whitefish_bay() {
         finished.ship
     );
     assert!(finished.voyage.past_gate);
+}
+
+/// Crossing the chart takes bigger steps than the runs above, and must not
+/// change how a voyage ends.
+#[test]
+fn the_chart_clock_speed_does_not_change_the_ending() {
+    let content = real_content();
+    let step = content.balance.voyage_minutes_per_second / 256.0;
+    let lost = historical();
+    assert_eq!(run_stepping(&lost, step).fate, run(&lost).fate);
+    let saved = prudent();
+    assert_eq!(run_stepping(&saved, step).fate, run(&saved).fate);
+    assert_eq!(run_stepping(&saved, step).fate, Fate::Reached);
 }
 
 #[test]

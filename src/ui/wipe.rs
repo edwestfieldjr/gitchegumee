@@ -8,14 +8,10 @@ use crate::states::GameState;
 
 const BLIND_H: f32 = 8.0;
 /// Game seconds the screen stays covered, then game seconds the blinds take to
-/// open. At a `pace` of 0.25 that is 0.4 and then 1.4 real seconds.
-const HOLD: f32 = 0.1;
-const OPEN: f32 = 0.35;
+/// open. At a `pace` of 0.25 that is 0.2 and then 0.8 real seconds.
+const HOLD: f32 = 0.05;
+const OPEN: f32 = 0.2;
 const WIPE_Z: f32 = 90.0;
-
-/// Whether the blinds have fully opened on the current screen.
-#[derive(Resource, Default)]
-pub struct WipeOpen(pub bool);
 
 #[derive(Component)]
 struct Blind {
@@ -55,7 +51,6 @@ fn run_wipe(
     time: Res<Time>,
     state: Res<State<GameState>>,
     mut clock: Local<f32>,
-    mut open: ResMut<WipeOpen>,
     mut blinds: Query<(&Blind, &mut Transform, &mut Visibility)>,
 ) {
     if state.is_changed() {
@@ -63,7 +58,6 @@ fn run_wipe(
     }
     *clock += time.delta_secs();
     let height = blind_height(*clock);
-    open.0 = height <= 0.0;
     for (blind, mut transform, mut visibility) in &mut blinds {
         *visibility = if height > 0.0 {
             Visibility::Inherited
@@ -79,8 +73,7 @@ pub struct WipePlugin;
 
 impl Plugin for WipePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<WipeOpen>()
-            .add_systems(Startup, spawn_blinds)
+        app.add_systems(Startup, spawn_blinds)
             .add_systems(Update, run_wipe);
     }
 }

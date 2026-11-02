@@ -1,9 +1,9 @@
 (
     // Master game speed. 1.0 is the speed the numbers below are written for.
     pace: 0.25,
-    voyage_minutes_per_second: 4.0,
-    fast_forward: 5.0,
-    past_gate_clock_factor: 3.0,
+    // Clock speed crossing the chart once orders are given, in game time. At a
+    // pace of 0.25 the longest leg between races takes about 5 real seconds.
+    voyage_minutes_per_second: 520.0,
     last_contact_gate: (10, 19, 20),
     final_stretch_nm: 15.0,
     north_route_wave_factor: 0.75,

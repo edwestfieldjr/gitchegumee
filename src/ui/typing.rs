@@ -1,20 +1,19 @@
 //! Teletype text, so that the player gets time to read.
 //!
-//! Text types out one character at a time. Space or Enter finishes it. The text
-//! then sits for [`HOLD_SECONDS`] before a press can move on, so a screen cannot
-//! leave before it has been read.
+//! Text types out one character at a time. Space or Enter finishes it, and the
+//! screen stays until another press moves on, so the player sets the reading
+//! time. [`HOLD_SECONDS`] keeps a double press from skipping the text.
 
 use bevy::prelude::*;
 
 use super::font::wrap;
 use super::palette::Pal;
-use super::wipe::WipeOpen;
 use super::{CELL_LINE, Label, at, z};
 
 /// In game time, so at a `pace` of 0.25 this is 10 characters a real second.
 const CHARS_PER_SECOND: f32 = 40.0;
-/// Real seconds that finished text stays up, counted once the blinds are open.
-const HOLD_SECONDS: f32 = 3.0;
+/// Real seconds after text finishes before a press can move on.
+const HOLD_SECONDS: f32 = 0.5;
 /// Pause at the end of each line, counted in characters.
 const LINE_PAUSE_CHARS: usize = 6;
 
@@ -37,7 +36,7 @@ impl Typed {
         self.shown_chars() >= self.full.len()
     }
 
-    /// Finished, and on screen long enough to have been read.
+    /// Finished, and past the guard against a double press.
     pub fn settled(&self) -> bool {
         self.finished() && self.held >= HOLD_SECONDS
     }
@@ -99,7 +98,6 @@ pub fn enter_may_advance(typed: &Query<&Typed>, finish: &mut MessageWriter<Finis
 fn advance_typing(
     time: Res<Time>,
     real: Res<Time<Real>>,
-    wipe: Res<WipeOpen>,
     mut finish: MessageReader<FinishTyping>,
     mut typed: Query<(&mut Typed, &mut Label)>,
 ) {
@@ -110,7 +108,7 @@ fn advance_typing(
         } else if !line.finished() {
             line.elapsed += time.delta_secs();
         }
-        if line.finished() && wipe.0 {
+        if line.finished() {
             line.held += real.delta_secs();
         }
         let shown: String = line.full.chars().take(line.shown_chars()).collect();

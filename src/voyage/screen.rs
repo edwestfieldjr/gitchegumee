@@ -10,7 +10,7 @@ use crate::events::ApplyEffect;
 use crate::ship::{PUMPS, Pump, Ship};
 use crate::states::GameState;
 use crate::ui::palette::Pal;
-use crate::ui::{Bar, Label, at, bar_parts, label, rect, z};
+use crate::ui::{Bar, Label, advance_pressed, at, bar_parts, label, rect, z};
 use crate::weather::{Weather, compass_point};
 
 const MAP_Y: f32 = 10.0;
@@ -58,6 +58,30 @@ struct PumpLabel(usize);
 #[derive(Component)]
 struct LogRow(usize);
 
+/// Whether the captain has given orders. The chart's clock waits until then.
+#[derive(Resource, Default)]
+struct Proceeding(bool);
+
+fn stop_for_orders(mut proceeding: ResMut<Proceeding>) {
+    proceeding.0 = false;
+}
+
+/// The voyage clock while the chart is up, in minutes per game second.
+fn chart_rate(proceeding: bool, minutes_per_second: f32) -> f32 {
+    if proceeding { minutes_per_second } else { 0.0 }
+}
+
+fn hint_text(proceeding: bool) -> &'static str {
+    if proceeding {
+        "UNDER WAY"
+    } else {
+        "UP/DN SPEED  1-6 PUMPS  R REPAIR  SPACE/ENTER: GO"
+    }
+}
+
+#[derive(Component)]
+struct HintLabel;
+
 #[derive(Component)]
 struct ShipMarker;
 
@@ -72,10 +96,11 @@ fn enter_voyage(
     mut commands: Commands,
     map: Res<MapImage>,
     voyage: Res<Voyage>,
+    proceeding: Res<Proceeding>,
     mut rate: ResMut<ClockRate>,
     content: Res<Content>,
 ) {
-    rate.0 = content.balance.voyage_minutes_per_second;
+    rate.0 = chart_rate(proceeding.0, content.balance.voyage_minutes_per_second);
     let scope = DespawnOnExit(GameState::Voyage);
     commands.spawn((
         rect(0.0, 0.0, 320.0, 200.0, Pal::Night, z::BACKGROUND),
@@ -194,12 +219,8 @@ fn enter_voyage(
         ));
     }
     commands.spawn((
-        label(
-            "UP/DN SPEED  1-6 PUMPS  R REPAIR  HOLD SPACE: FASTER",
-            4.0,
-            190.0,
-            Pal::Gray,
-        ),
+        label(hint_text(proceeding.0), 4.0, 190.0, Pal::Gray),
+        HintLabel,
         scope,
     ));
 }
@@ -207,9 +228,10 @@ fn enter_voyage(
 fn voyage_input(
     keys: Res<ButtonInput<KeyCode>>,
     ship: Res<Ship>,
-    voyage: Res<Voyage>,
     content: Res<Content>,
+    mut proceeding: ResMut<Proceeding>,
     mut rate: ResMut<ClockRate>,
+    mut hint: Single<&mut Label, With<HintLabel>>,
     mut effects: MessageWriter<ApplyEffect>,
 ) {
     const PUMP_KEYS: [KeyCode; PUMPS] = [
@@ -242,18 +264,11 @@ fn voyage_input(
         };
         effects.write(ApplyEffect(Effect::Speed(slower)));
     }
-    let balance = &content.balance;
-    let boost = if keys.pressed(KeyCode::Space) {
-        balance.fast_forward
-    } else {
-        1.0
-    };
-    let after_gate = if voyage.past_gate {
-        balance.past_gate_clock_factor
-    } else {
-        1.0
-    };
-    rate.0 = balance.voyage_minutes_per_second * boost * after_gate;
+    if advance_pressed(&keys) {
+        proceeding.0 = true;
+    }
+    rate.0 = chart_rate(proceeding.0, content.balance.voyage_minutes_per_second);
+    hint.set(hint_text(proceeding.0));
 }
 
 /// Miles the Anderson is astern at a clock minute.
@@ -368,7 +383,10 @@ pub struct VoyageScreenPlugin;
 
 impl Plugin for VoyageScreenPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(GameState::Voyage), enter_voyage)
+        app.init_resource::<Proceeding>()
+            .add_systems(OnEnter(GameState::Port), stop_for_orders)
+            .add_systems(OnExit(GameState::Helm), stop_for_orders)
+            .add_systems(OnEnter(GameState::Voyage), enter_voyage)
             .add_systems(
                 Update,
                 (voyage_input, draw_status, draw_markers).run_if(in_state(GameState::Voyage)),
@@ -379,6 +397,26 @@ impl Plugin for VoyageScreenPlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::content::At;
+    use crate::content::tests::real_content;
+
+    #[test]
+    fn the_clock_waits_for_orders() {
+        assert_eq!(chart_rate(false, 520.0), 0.0);
+        assert_eq!(chart_rate(true, 520.0), 520.0);
+    }
+
+    #[test]
+    fn no_leg_keeps_the_player_on_the_chart_for_long() {
+        let content = real_content();
+        let mut from = At(9, 14, 15).minute();
+        let real_rate = content.balance.voyage_minutes_per_second * content.balance.pace;
+        for section in &content.helm {
+            let seconds = (section.at.minute() - from) / real_rate;
+            assert!(seconds <= 6.0, "{} is {seconds} seconds away", section.id);
+            from = section.at.minute() + section.minutes;
+        }
+    }
 
     #[test]
     fn the_anderson_opens_to_her_historical_distance() {
