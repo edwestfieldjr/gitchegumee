@@ -2,7 +2,7 @@
 
 ## Project
 
-**Working title:** Downbound
+**Title:** Gitche Gumee: The Last Voyage of the Edmund Fitzgerald
 
 A retro, Atari-2600/7800-style game about the last voyage of the SS *Edmund Fitzgerald*, November 9–10, 1975, Lake Superior. It mixes two modes:
 
