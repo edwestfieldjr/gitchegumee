@@ -15,6 +15,7 @@ changed this file. `CLAUDE.md` itself has changed in one line: the title.
 | At least 50% slower | New master setting, `pace` in `assets/data/balance.ron`, set to `0.5`. It slows the whole game clock. |
 | Much slower, "a freighter, not a race car" | `pace` went from `0.5` to `0.25`. |
 | Racing a little faster | New setting, `helm_pace` in `assets/data/balance.ron`, set to `0.33`. It replaces `pace` during a race, about a third faster than the rest of the game. |
+| Full speed 1.75x faster | At the helm, the FULL order scrolls at 2.275x cruise, up from 1.3x. **Read as 1.75x the old full speed**, not 1.75x cruise. The ship's 14 knots on the chart did not change. |
 | Time to read, without long delays | Text stays up until a key press moves on, with a 0.5-second guard against double presses. Wipes take about 1 real second. Space does what Enter does on every screen that advances. |
 | Less time staring at the map | The chart's clock now waits for speed and pump orders, then Space or Enter runs to the next race in about 5 real seconds at most. The time still passes in the simulation, events still fire, and the chart stops again after each race. |
 | Only half the screen wiped | The blinds were centered on the left edge. They now span the view. |

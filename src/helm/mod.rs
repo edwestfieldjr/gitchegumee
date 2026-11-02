@@ -44,7 +44,7 @@ const BASE_RUDDER_RATE: f32 = 4.0;
 const FATIGUE_RUDDER_LOSS: f32 = 1.0 / 160.0;
 /// Scroll multiplier for each speed order.
 const SLOW_SCROLL: f32 = 0.75;
-const FULL_SCROLL: f32 = 1.3;
+const FULL_SCROLL: f32 = 2.275;
 
 #[derive(Resource)]
 struct HelmRun {
