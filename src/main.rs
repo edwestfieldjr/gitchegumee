@@ -1,3 +1,4 @@
+mod audio;
 mod boot;
 mod content;
 #[cfg(feature = "dev")]
