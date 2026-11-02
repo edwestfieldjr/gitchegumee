@@ -1,7 +1,7 @@
 # Changelog
 
-Every change from the original `CLAUDE.md` brief, up to and including commit
-`0cf7a89` and this file. `CLAUDE.md` itself has changed in one line: the title.
+Every change from the original `CLAUDE.md` brief, up to the commit that last
+changed this file. `CLAUDE.md` itself has changed in one line: the title.
 
 ## Changes you requested after the brief
 
@@ -13,7 +13,11 @@ Every change from the original `CLAUDE.md` brief, up to and including commit
 | Horizontal bars looked like embankments | Waves were flat strips. They are now uneven breakers with whitecaps that taper toward the gap. |
 | Slower screens, time to read | Text types out, and Enter finishes it before moving on. A blinds wipe opens each screen. The voyage clock went from 6 to 4 game minutes per second. |
 | At least 50% slower | New master setting, `pace` in `assets/data/balance.ron`, set to `0.5`. It slows the whole game clock. |
-| Survival sequence at Detroit | The ship comes down the Detroit River at dusk, lights on, and sounds her horn. The skyline is a **stand-in** until it is redrawn from your photo. |
+| Survival sequence at Detroit | The ship comes down the river at night, lights on, and sounds her horn, under the caption "DETROIT" in letters a little smaller than the old caption. |
+| Use the 1965 skyline, add Mariners' Church | Original pixel art traced by eye from `detroit_skyline_1965.jpg`, with no Renaissance Center, and the church on the shore right of center, drawn from your photos. The church tower is my estimate of about 1.5x true scale, so it can be recognized. No photo ships with the game. |
+| Use that scene for the bell | The memorial is now two parts: the words, then the Detroit scene with the 29 tolls, the belfry lighting on each stroke. The game ends on the bell. |
+| Turn angle of about 15 degrees | At the helm the ship leans 8 or 15 degrees, not 45. The frames are made by rotating the upright sprite when the game loads. The original 45-degree frames are no longer used. |
+| Gitignore `docs/art/reference/` | It was already ignored, and nothing under it is tracked. |
 | Breakers should move | Crests heave and sway. Collision follows the sway. |
 | Gap widths should vary | Each gap is random, from the old width up to 1.75x. **"175% wider" was read as 175% of the old width**, because 2.75x would leave almost no crest. Change `GAP_WIDEST_FACTOR` in `src/helm/sim.rs` to adjust it. |
 
@@ -50,6 +54,13 @@ the old name `downbound`.
   - The shoals north of Caribou Island being called poorly charted.
 - **The lake chart is hand-simplified from memory,** not taken from NOAA data.
   It is a game map and is not accurate enough for anything else.
+- **Reference photos were committed by mistake, then removed.** Photos dropped
+  into `assets/data/` were swept into a docs commit by `git add -A`. That
+  unpushed commit was amended to take them out. The files were never lost, and
+  are now in `docs/art/reference/`.
+- **The skyline is traced from a 1965 photo that may be under copyright.** Only
+  shapes were used, redrawn at low resolution, but check this before any public
+  release.
 - **Early commits do not run.** `CLAUDE.md` asks every step to leave `cargo run`
   working. Commits `feat: add simulation core` through `feat: add title, port`
   compile and pass their tests but crash at startup, because their plugins were

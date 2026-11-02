@@ -46,7 +46,9 @@ To survive, all of these must hold (`survival` in `balance.ron`):
 - At the time: water at most 25%, hull at least 50%, list at most 6 degrees, and
   at most one rogue-wave hit.
 
-Both endings have a closing sequence. Neither shows a cause for the loss.
+Both endings have a closing sequence. Neither shows a cause for the loss. The
+survival ending and the memorial's bell share one Detroit scene, drawn in
+`src/outcome/detroit.rs`.
 
 ## Tuning
 
@@ -63,5 +65,4 @@ up, `DOWNBOUND_SHOT_DIR` saves screenshots, and `DOWNBOUND_SEED` fixes the seed.
 
 ## To do
 
-- Redraw the Detroit skyline from the reference photo.
 - Replace the placeholder title theme.
