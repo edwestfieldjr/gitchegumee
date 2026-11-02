@@ -1,0 +1,270 @@
+// Text events and radio traffic, in clock order. `at` is (day, hour, minute).
+// mode: Log writes a line to the radio log. Panel stops for the player.
+[
+    (id: "sailing", at: (9, 14, 16), mode: Log, title: "", body: "UNDER WAY FROM SUPERIOR. TACONITE FOR ZUG ISLAND."),
+    (id: "anderson_joins", at: (9, 17, 0), mode: Log, title: "", body: "ARTHUR M. ANDERSON, OUT OF TWO HARBORS, IN COMPANY."),
+    (
+        id: "gale_warning",
+        at: (9, 19, 0),
+        mode: Panel,
+        title: "RADIO - WEATHER",
+        body: "THE WEATHER SERVICE HAS ISSUED GALE WARNINGS FOR ALL OF LAKE SUPERIOR.\n\nTHE ANDERSON IS TURNING NORTH TOWARD THE ONTARIO SHORE.",
+        choices: [
+            (
+                label: "TURN NORTH WITH THE ANDERSON",
+                result: "YOU COME NORTH. THE SHORE WILL BREAK THE WORST OF A NORTHEAST SEA, BUT THE ROUTE IS LONGER.",
+                effects: [SetRoute(North), SetFlag("north_route")],
+            ),
+            (
+                label: "HOLD THE STANDARD TRACK",
+                result: "YOU HOLD THE DOWNBOUND TRACK. IT IS THE SHORTER WAY, AND THE MORE OPEN ONE.",
+                effects: [SetRoute(Standard), SetFlag("held_track")],
+            ),
+        ],
+    ),
+    (id: "sykes", at: (9, 21, 0), mode: Log, title: "", body: "WILFRED SYKES IS TAKING THE NORTH SHORE TOWARD THUNDER BAY."),
+    (
+        id: "storm_hits",
+        at: (10, 1, 0),
+        mode: Panel,
+        title: "PILOTHOUSE",
+        body: "THE STORM IS ON YOU. 52 KNOTS OF WIND AND 10 FOOT SEAS.\n\nTHE WHEELSMAN WANTS TO KNOW HOW YOU WANT HER RUN.",
+        choices: [
+            (
+                label: "BRING HER DOWN TO SLOW AHEAD",
+                result: "THE ENGINE ROOM ANSWERS. SHE POUNDS LESS, AND LOSES TIME.",
+                effects: [Speed(Slow)],
+            ),
+            (
+                label: "HOLD YOUR SPEED",
+                result: "YOU HOLD YOUR SPEED. THE HULL TAKES EVERY SEA AS IT COMES.",
+                effects: [Morale(2.0)],
+            ),
+        ],
+    ),
+    (id: "storm_warning", at: (10, 2, 0), mode: Log, title: "", body: "GALE WARNINGS UPGRADED TO STORM WARNINGS."),
+    (
+        id: "anderson_astern",
+        at: (10, 3, 0),
+        mode: Panel,
+        title: "RADAR",
+        body: "THE ANDERSON IS DROPPING ASTERN ON THE SCOPE.\n\nSHE IS A SLOWER SHIP IN THIS SEA. KEEPING HER CLOSE WILL COST YOU TIME.",
+        choices: [
+            (
+                label: "EASE DOWN AND KEEP HER CLOSE",
+                result: "YOU EASE DOWN. THE ANDERSON HOLDS STEADY ON THE SCOPE.",
+                effects: [Speed(Slow), SetFlag("kept_pace"), Morale(3.0)],
+            ),
+            (
+                label: "PULL AHEAD",
+                result: "THE GAP OPENS. BY MORNING SHE IS A DISTANT RETURN.",
+                effects: [Speed(Full), SetFlag("pulled_ahead")],
+            ),
+        ],
+    ),
+    (
+        id: "lee_north",
+        at: (10, 6, 30),
+        mode: Panel,
+        title: "CHART ROOM",
+        when: [RouteIs(North)],
+        body: "ISLE ROYALE AND THE ONTARIO SHORE LIE CLOSE.\n\nTHE FIRST MATE SAYS A FEW HOURS IN THEIR LEE WOULD REST THE CREW, BUT THE STORM WILL NOT WAIT FOR YOU.",
+        choices: [
+            (
+                label: "SEEK THE LEE FOR THREE HOURS",
+                result: "THE MOTION EASES. THE OFF WATCH SLEEPS.",
+                effects: [Lee(180.0), SetFlag("took_lee"), Fatigue(-15.0), Morale(5.0)],
+            ),
+            (
+                label: "STAND ON",
+                result: "YOU STAND ON. THE SHORE SLIDES PAST ON THE RADAR.",
+                effects: [],
+            ),
+        ],
+    ),
+    (
+        id: "lee_open",
+        at: (10, 6, 30),
+        mode: Panel,
+        title: "CHART ROOM",
+        when: [RouteIs(Standard)],
+        body: "THE KEWEENAW IS CLOSE ABEAM.\n\nTHE FIRST MATE SAYS THERE IS LITTLE SHELTER ON THIS TRACK, BUT YOU COULD STILL HAUL NORTH FOR THE ONTARIO SHORE.",
+        choices: [
+            (
+                label: "HAUL NORTH FOR THE LEE",
+                result: "YOU COME NORTH AND LOSE HOURS. THE SEA EASES AS THE LAND CLOSES.",
+                effects: [SetRoute(North), SetFlag("north_route"), Lee(120.0), SetFlag("took_lee"), Fatigue(-8.0)],
+            ),
+            (
+                label: "STAND ON",
+                result: "YOU STAND ON ACROSS THE OPEN LAKE.",
+                effects: [],
+            ),
+        ],
+    ),
+    (
+        id: "tired_watch",
+        at: (10, 8, 0),
+        mode: Panel,
+        chance: 0.6,
+        title: "CREW",
+        body: "NOBODY HAS SLEPT WELL SINCE MIDNIGHT. A DECKHAND HAS BEEN THROWN FROM HIS BUNK, BRUISED BUT ON DUTY.\n\nTHE WATCHES ARE RAGGED.",
+        choices: [
+            (
+                label: "DOUBLE UP THE WATCHES",
+                result: "EVERY STATION IS COVERED. EVERYONE IS MORE TIRED.",
+                effects: [Fatigue(8.0), Morale(3.0)],
+            ),
+            (
+                label: "SEND THE OFF WATCH BELOW",
+                result: "THE PILOTHOUSE RUNS THIN FOR A FEW HOURS, BUT SOME OF THEM SLEEP.",
+                effects: [Fatigue(-8.0), Morale(-1.0)],
+            ),
+        ],
+    ),
+    (
+        id: "schedule",
+        at: (10, 10, 0),
+        mode: Panel,
+        title: "SCHEDULE",
+        body: "ZUG ISLAND IS WAITING ON THE CARGO, AND THE STORM HAS ALREADY COST YOU HOURS.\n\nTHE WIND IS EASING AS THE CENTER COMES THROUGH. YOU COULD MAKE UP TIME NOW.",
+        choices: [
+            (
+                label: "KEEP HER SLOW",
+                result: "YOU WRITE OFF THE SCHEDULE. THE CARGO CAN BE LATE.",
+                effects: [Speed(Slow)],
+            ),
+            (
+                label: "PUSH TO KEEP SCHEDULE",
+                result: "THE REVOLUTIONS COME UP. THE HULL WORKS HARDER.",
+                effects: [Speed(Full), SetFlag("pushed"), Morale(2.0)],
+            ),
+        ],
+    ),
+    (
+        id: "pump_trouble",
+        at: (10, 12, 0),
+        mode: Panel,
+        chance: 0.4,
+        title: "ENGINE ROOM",
+        body: "THE CHIEF ENGINEER REPORTS NUMBER FOUR PUMP IS DOWN WITH A BAD MOTOR.\n\nPRESS R ON THE VOYAGE SCREEN TO PUT A CREW ON REPAIRS.",
+        effects: [PumpDown(3)],
+    ),
+    (id: "center_passes", at: (10, 12, 45), mode: Log, title: "", body: "STORM CENTER PASSING. WIND BACKING ROUND THROUGH SOUTH."),
+    (
+        id: "hand_line",
+        at: (10, 14, 0),
+        mode: Panel,
+        chance: 0.7,
+        title: "SOUNDING",
+        body: "THIS SHIP HAS NO FATHOMETER. A DEPTH MEANS A HAND LINE OVER THE SIDE, AND IN THIS SEA THAT MEANS PUTTING A MAN AT THE RAIL.",
+        choices: [
+            (
+                label: "RELY ON THE CHART",
+                result: "YOU STAY WITH THE CHART AND THE RADAR.",
+                effects: [],
+            ),
+            (
+                label: "TAKE A SOUNDING",
+                result: "THE LINE GOES OVER AND COMES BACK. THE DECKHAND COMES IN SOAKED AND FROZEN.",
+                effects: [Fatigue(4.0), Morale(1.0)],
+            ),
+        ],
+    ),
+    (id: "snow", at: (10, 14, 45), mode: Log, title: "", body: "HEAVY SNOW. THE ANDERSON HAS LOST SIGHT OF YOU, 16 MILES ASTERN."),
+    (
+        id: "caribou",
+        at: (10, 15, 5),
+        mode: Panel,
+        title: "CARIBOU ISLAND",
+        body: "CARIBOU ISLAND IS AHEAD, AND THE SHOALS NORTH OF IT ARE POORLY CHARTED.\n\nTHE MATE SAYS A WIDE PASS WILL COST TIME YOU DO NOT HAVE IN THIS WEATHER.",
+        choices: [
+            (
+                label: "PASS WELL WIDE OF THE SHOALS",
+                result: "YOU ALTER AWAY AND THE CLOCK RUNS ON. THE WATER STAYS DEEP UNDER YOU, AS FAR AS YOU CAN TELL.",
+                effects: [SetFlag("wide_of_caribou"), Delay(20.0)],
+            ),
+            (
+                label: "HOLD THE SHORTER COURSE",
+                result: "YOU HOLD YOUR COURSE. THE LOOKOUT WATCHES FOR BROKEN WATER AND SEES ONLY SNOW.",
+                effects: [SetFlag("close_to_caribou")],
+            ),
+        ],
+    ),
+    (
+        id: "topside",
+        at: (10, 15, 30),
+        mode: Panel,
+        title: "DAMAGE REPORT",
+        body: "A FENCE RAIL AND TWO VENT COVERS ARE GONE. YOU ARE TAKING ON WATER AND HAVE A STARBOARD LIST.\n\nNOBODY CAN SAY YET WHAT DID IT. THE ANDERSON IS TOLD.",
+        effects: [Topside, Water(3.0), List(2.0)],
+        choices: [
+            (
+                label: "RUN TWO PUMPS",
+                result: "TWO PUMPS ON LINE. THE CHIEF SAVES THE OTHERS IN RESERVE.",
+                effects: [PumpsRun(2)],
+            ),
+            (
+                label: "RUN EVERY PUMP YOU HAVE",
+                result: "EVERY PUMP THAT WILL START IS ON LINE. THE FUEL GOES FASTER.",
+                effects: [PumpsRun(6)],
+            ),
+        ],
+    ),
+    (
+        id: "soo_closed",
+        at: (10, 15, 35),
+        mode: Panel,
+        title: "RADIO - COAST GUARD",
+        body: "THE COAST GUARD HAS CLOSED THE SOO LOCKS AND IS TELLING ALL SHIPS TO SEEK ANCHORAGE.\n\nWHITEFISH BAY IS THE NEAREST SHELTER.",
+        choices: [
+            (
+                label: "RUN FOR WHITEFISH BAY",
+                result: "YOU HOLD FOR THE BAY. THERE IS NOWHERE CLOSER.",
+                effects: [],
+            ),
+            (
+                label: "HEAVE TO, BOW TO THE SEA",
+                result: "YOU BRING HER HEAD ROUND AND RIDE IT FOR AN HOUR. THE BAY GETS NO CLOSER.",
+                effects: [Lee(60.0), SetFlag("hove_to")],
+            ),
+        ],
+    ),
+    (
+        id: "radar_lost",
+        at: (10, 16, 10),
+        mode: Panel,
+        title: "RADAR",
+        body: "THE RADAR HAS FAILED.\n\nTHE ANDERSON IS STILL BEHIND YOU, AND STILL HAS A PICTURE OF THE LAKE.",
+        effects: [RadarDown(0)],
+        choices: [
+            (
+                label: "ASK THE ANDERSON TO TRACK YOU",
+                result: "THE ANDERSON AGREES. HER MATE WILL CALL YOUR POSITION AND WARN YOU OF WHAT IS AHEAD.",
+                effects: [SetFlag("anderson_guidance")],
+            ),
+            (
+                label: "RUN ON COMPASS AND CHART",
+                result: "YOU DO NOT CALL. THE WHEELSMAN HOLDS THE COMPASS COURSE.",
+                effects: [],
+            ),
+        ],
+    ),
+    (id: "beacon_out", at: (10, 16, 39), mode: Log, title: "", body: "WHITEFISH POINT LIGHT AND RADIO BEACON REPORTED OUT."),
+    (
+        id: "avafors",
+        at: (10, 17, 15),
+        mode: Panel,
+        title: "RADIO - AVAFORS",
+        body: "THE AVAFORS REPORTS WHITEFISH POINT LIGHT IS BACK ON, BUT THE BEACON IS STILL OFF.\n\nTHE SECOND RADAR HAS GONE TOO. THE LIST IS WORSE AND HEAVY SEAS ARE COMING OVER THE DECK.",
+        effects: [RadarDown(1), List(2.0), Water(2.0)],
+    ),
+    (id: "peak", at: (10, 18, 0), mode: Log, title: "", body: "SEAS TO 25 FEET. GUSTS TO 75 KNOTS."),
+    (
+        id: "last_contact",
+        at: (10, 19, 10),
+        mode: Panel,
+        title: "RADIO - ANDERSON",
+        body: "THE ANDERSON CALLS TO WARN OF TRAFFIC AHEAD, AND ASKS HOW YOU ARE GETTING ON.\n\nTHE CAPTAIN ANSWERS THAT YOU ARE HOLDING YOUR OWN.",
+    ),
+]

@@ -1,0 +1,52 @@
+// Original, hand-simplified outline of Lake Superior as (lat, lon) points.
+// It is a game map at about 40 km per pixel. It is not for navigation.
+(
+    lake: [
+        (46.78, -92.10), (47.02, -91.67), (47.29, -91.26), (47.75, -90.33),
+        (47.96, -89.68), (48.00, -89.57), (48.30, -89.05), (48.43, -89.20),
+        (48.36, -88.85), (48.72, -88.45), (48.93, -88.25), (48.83, -87.52),
+        (48.78, -87.10), (48.72, -86.40), (48.30, -86.20), (47.95, -84.95),
+        (47.60, -85.00), (47.24, -84.65), (46.93, -84.55), (46.52, -84.60),
+        (46.42, -84.62), (46.50, -85.00), (46.77, -84.95), (46.67, -85.98),
+        (46.42, -86.65), (46.55, -87.40), (46.85, -87.70), (46.90, -87.95),
+        (46.75, -88.45), (47.15, -88.15), (47.40, -87.72), (47.47, -87.89),
+        (47.46, -88.16), (47.20, -88.62), (46.87, -89.31), (46.80, -89.75),
+        (46.60, -90.40), (46.62, -90.85), (46.95, -90.75), (46.78, -91.38),
+        (46.70, -92.02),
+    ],
+    islands: [
+        [(47.88, -89.22), (48.15, -88.45), (48.05, -88.40), (47.82, -89.15)],
+        [(47.76, -86.05), (47.84, -85.60), (47.72, -85.62), (47.68, -86.00)],
+        [(47.44, -85.87), (47.44, -85.78), (47.36, -85.78), (47.36, -85.87)],
+    ],
+    routes: [
+        (
+            id: Standard,
+            name: "STANDARD DOWNBOUND TRACK",
+            points: [
+                (name: "SUPERIOR", lat: 46.72, lon: -92.05),
+                (name: "TWO HARBORS OFFING", lat: 46.95, lon: -91.45),
+                (name: "APOSTLE ISLANDS OFFING", lat: 47.15, lon: -90.60),
+                (name: "KEWEENAW OFFING", lat: 47.72, lon: -87.90),
+                (name: "CARIBOU ISLAND", lat: 47.28, lon: -85.98),
+                (name: "WRECK SITE", lat: 46.998, lon: -85.11),
+                (name: "WHITEFISH BAY", lat: 46.77, lon: -84.95),
+            ],
+        ),
+        (
+            id: North,
+            name: "NORTH-SHORE ROUTE",
+            points: [
+                (name: "SUPERIOR", lat: 46.72, lon: -92.05),
+                (name: "TWO HARBORS OFFING", lat: 46.95, lon: -91.45),
+                (name: "THUNDER BAY OFFING", lat: 48.20, lon: -88.95),
+                (name: "NORTH OF ISLE ROYALE", lat: 48.32, lon: -88.00),
+                (name: "ONTARIO SHORE", lat: 48.40, lon: -86.90),
+                (name: "MICHIPICOTEN", lat: 47.92, lon: -86.10),
+                (name: "CARIBOU ISLAND", lat: 47.50, lon: -85.62),
+                (name: "WRECK SITE", lat: 46.998, lon: -85.11),
+                (name: "WHITEFISH BAY", lat: 46.77, lon: -84.95),
+            ],
+        ),
+    ],
+)

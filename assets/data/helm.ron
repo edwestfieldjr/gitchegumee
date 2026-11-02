@@ -1,0 +1,28 @@
+// Action sections. `minutes` of the voyage clock pass during `seconds` of play.
+// Densities are hazards per 100 pixels of scrolling.
+[
+    (
+        id: "first_blow", at: (10, 1, 5), minutes: 30.0, seconds: 30.0, title: "THE STORM ARRIVES",
+        scroll: 55.0, waves: 0.9, logs: 0.3,
+    ),
+    (
+        id: "wind_shift", at: (10, 13, 0), minutes: 30.0, seconds: 30.0, title: "THE WIND SHIFTS",
+        scroll: 60.0, waves: 0.8, logs: 0.6, wind_shifts: true,
+    ),
+    (
+        id: "snow_squall", at: (10, 14, 46), minutes: 15.0, seconds: 30.0, title: "SNOW SQUALL",
+        scroll: 60.0, waves: 1.0, logs: 0.5, snow: true,
+    ),
+    (
+        id: "caribou_shoals", at: (10, 15, 10), minutes: 15.0, seconds: 35.0, title: "OFF CARIBOU ISLAND",
+        scroll: 60.0, waves: 0.9, logs: 0.3, shoals: 1.0, shoals_if_wide: 0.25, snow: true,
+    ),
+    (
+        id: "dark_approach", at: (10, 16, 45), minutes: 25.0, seconds: 35.0, title: "NO LIGHT, NO BEACON",
+        scroll: 65.0, waves: 1.2, logs: 0.4, snow: true, wind_shifts: true, beacon_dark: true,
+    ),
+    (
+        id: "last_stretch", at: (10, 18, 20), minutes: 30.0, seconds: 45.0, title: "THE LAST STRETCH",
+        scroll: 70.0, waves: 1.3, logs: 0.3, snow: true, beacon_dark: true, rogue_set: true,
+    ),
+]

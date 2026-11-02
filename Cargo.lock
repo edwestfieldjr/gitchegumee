@@ -2465,6 +2465,8 @@ name = "downbound"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "ron",
+ "serde",
 ]
 
 [[package]]

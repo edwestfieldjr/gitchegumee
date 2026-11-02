@@ -46,6 +46,30 @@ impl Plugin for StatesPlugin {
     fn build(&self, app: &mut App) {
         app.init_state::<GameState>()
             .add_sub_state::<EventPhase>()
-            .add_computed_state::<UnderWay>();
+            .add_computed_state::<UnderWay>()
+            .configure_sets(
+                FixedUpdate,
+                (
+                    SimSet::Clock,
+                    SimSet::Weather,
+                    SimSet::Ship,
+                    SimSet::Position,
+                )
+                    .chain(),
+            );
     }
+}
+
+/// Order of the simulation within a fixed step.
+#[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SimSet {
+    Clock,
+    Weather,
+    Ship,
+    Position,
+}
+
+/// The voyage clock runs on the voyage and helm layers, and stops for events.
+pub fn sim_running(state: Res<State<GameState>>) -> bool {
+    matches!(state.get(), GameState::Voyage | GameState::Helm)
 }

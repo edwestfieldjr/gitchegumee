@@ -1,0 +1,22 @@
+// Weather timeline. `at` is (day of November 1975, hour, minute), local time.
+// Sourced values: 52 kn / 10 ft at 1 a.m., the NE -> S -> NW shift in the
+// afternoon, snow at 2:45 p.m., and 25 ft seas with 70-75 kn gusts near 6 p.m.
+// Values between those points are estimates. Keys after 7:20 p.m. are invented
+// and are only reached on the counterfactual path.
+[
+    (at: (9, 14, 15), wind_kn: 12.0, wind_from: 50.0, wave_ft: 2.0, visibility: 1.0),
+    (at: (9, 19, 0), wind_kn: 28.0, wind_from: 50.0, wave_ft: 5.0, visibility: 0.95),
+    (at: (10, 1, 0), wind_kn: 52.0, wind_from: 45.0, wave_ft: 10.0, visibility: 0.8),
+    (at: (10, 3, 0), wind_kn: 50.0, wind_from: 40.0, wave_ft: 11.0, visibility: 0.8),
+    (at: (10, 9, 0), wind_kn: 42.0, wind_from: 60.0, wave_ft: 11.0, visibility: 0.8),
+    (at: (10, 12, 30), wind_kn: 22.0, wind_from: 90.0, wave_ft: 9.0, visibility: 0.85),
+    (at: (10, 13, 30), wind_kn: 14.0, wind_from: 180.0, wave_ft: 8.0, visibility: 0.85),
+    (at: (10, 14, 30), wind_kn: 32.0, wind_from: 300.0, wave_ft: 11.0, visibility: 0.7),
+    (at: (10, 14, 45), wind_kn: 36.0, wind_from: 310.0, wave_ft: 12.0, visibility: 0.35),
+    (at: (10, 15, 30), wind_kn: 46.0, wind_from: 315.0, wave_ft: 16.0, visibility: 0.4),
+    (at: (10, 16, 30), wind_kn: 55.0, wind_from: 315.0, wave_ft: 19.0, visibility: 0.4),
+    (at: (10, 18, 0), wind_kn: 70.0, wind_from: 315.0, wave_ft: 25.0, visibility: 0.45),
+    (at: (10, 19, 20), wind_kn: 65.0, wind_from: 315.0, wave_ft: 25.0, visibility: 0.45),
+    (at: (10, 21, 0), wind_kn: 50.0, wind_from: 315.0, wave_ft: 18.0, visibility: 0.5),
+    (at: (11, 1, 0), wind_kn: 35.0, wind_from: 315.0, wave_ft: 12.0, visibility: 0.7),
+]
