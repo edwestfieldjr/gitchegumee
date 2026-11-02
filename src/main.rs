@@ -49,8 +49,8 @@ fn main() {
         helm::HelmPlugin,
         outcome::OutcomePlugin,
     ));
-    // Twice the default, so motion stays smooth at the game's half-speed pace.
-    app.insert_resource(Time::<Fixed>::from_hz(128.0));
+    // Four times the default, so motion stays smooth at the game's quarter-speed pace.
+    app.insert_resource(Time::<Fixed>::from_hz(256.0));
     #[cfg(feature = "dev")]
     app.add_plugins(devtools::DevToolsPlugin);
     app.run();

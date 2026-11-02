@@ -8,7 +8,7 @@ use crate::content::{At, Content, RouteId, clock_text};
 use crate::ship::Ship;
 use crate::states::GameState;
 use crate::ui::palette::Pal;
-use crate::ui::{Label, centered, label, rect, z};
+use crate::ui::{Label, advance_pressed, centered, label, rect, z};
 
 /// The scheduled departure from Superior.
 const DEPARTURE: At = At(9, 14, 15);
@@ -108,7 +108,7 @@ fn port_input(
         }
         sfx.write(Sfx::Select);
     }
-    if keys.just_pressed(KeyCode::Enter) {
+    if advance_pressed(&keys) {
         if ROWS[menu.row] != Row::Depart {
             menu.row = ROWS.len() - 1;
             sfx.write(Sfx::Select);

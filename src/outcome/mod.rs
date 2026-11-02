@@ -13,8 +13,10 @@ use crate::rng::GameRng;
 use crate::states::{GameState, MemorialPhase};
 use crate::ui::font::wrap;
 use crate::ui::palette::Pal;
-use crate::ui::typing::{AfterTyping, FinishTyping, Typed, enter_may_advance, typed_lines};
-use crate::ui::{centered, label, rect, z};
+use crate::ui::typing::{
+    AfterHold, AfterTyping, FinishTyping, Typed, enter_may_advance, typed_lines,
+};
+use crate::ui::{advance_pressed, centered, label, rect, z};
 use crate::voyage::{Ending, Voyage};
 use closing::{CLOSING_SECONDS, ClosingCues, ClosingPart, ClosingWorld, SKIP_AFTER};
 use detroit::{DetroitImage, belfry_light, build_detroit_image, scene_sprite};
@@ -77,7 +79,7 @@ fn outcome_timeline(
     };
     let before = clock.0;
     clock.0 += time.delta_secs();
-    if before < words_at && before >= SKIP_AFTER && keys.just_pressed(KeyCode::Enter) {
+    if before < words_at && before >= SKIP_AFTER && advance_pressed(&keys) {
         clock.0 = words_at;
     }
     let reached_words = before < words_at && clock.0 >= words_at;
@@ -139,15 +141,12 @@ fn outcome_timeline(
         ));
         commands.spawn((
             centered("ENTER", 184.0, Pal::Amber, 1.0),
-            AfterTyping,
+            AfterHold,
             Visibility::Hidden,
             scope,
         ));
     }
-    if before >= words_at
-        && keys.just_pressed(KeyCode::Enter)
-        && enter_may_advance(&typed, &mut finish)
-    {
+    if before >= words_at && advance_pressed(&keys) && enter_may_advance(&typed, &mut finish) {
         next.set(GameState::Memorial);
     }
 }
@@ -181,7 +180,7 @@ fn enter_memorial_words(mut commands: Commands, content: Res<Content>) {
     }
     commands.spawn((
         centered("ENTER", 186.0, Pal::Gray, 1.0),
-        AfterTyping,
+        AfterHold,
         Visibility::Hidden,
         scope,
     ));
@@ -193,7 +192,7 @@ fn memorial_words_input(
     mut finish: MessageWriter<FinishTyping>,
     mut next: ResMut<NextState<MemorialPhase>>,
 ) {
-    if keys.just_pressed(KeyCode::Enter) && enter_may_advance(&typed, &mut finish) {
+    if advance_pressed(&keys) && enter_may_advance(&typed, &mut finish) {
         next.set(MemorialPhase::Bell);
     }
 }
@@ -267,7 +266,7 @@ fn ring_bell(
             Visibility::Hidden
         };
     }
-    if keys.just_pressed(KeyCode::Enter) {
+    if advance_pressed(&keys) {
         next.set(GameState::Title);
     }
 }

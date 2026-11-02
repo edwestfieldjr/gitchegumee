@@ -33,6 +33,11 @@ pub mod z {
     pub const TEXT: f32 = 60.0;
 }
 
+/// Whether the key that moves a screen along was just pressed.
+pub fn advance_pressed(keys: &ButtonInput<KeyCode>) -> bool {
+    keys.any_just_pressed([KeyCode::Enter, KeyCode::Space])
+}
+
 /// Transform for a point in view pixels, with (0, 0) at the top left.
 pub fn at(x: f32, y: f32, z: f32) -> Transform {
     Transform::from_xyz(x - VIEW_W as f32 / 2.0, VIEW_H as f32 / 2.0 - y, z)

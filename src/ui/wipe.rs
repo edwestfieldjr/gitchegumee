@@ -7,10 +7,15 @@ use super::{VIEW_H, VIEW_W, at};
 use crate::states::GameState;
 
 const BLIND_H: f32 = 8.0;
-/// Seconds the screen stays covered, then seconds the blinds take to open.
-const HOLD: f32 = 0.2;
-const OPEN: f32 = 0.7;
+/// Game seconds the screen stays covered, then game seconds the blinds take to
+/// open. At a `pace` of 0.25 that is 0.4 and then 1.4 real seconds.
+const HOLD: f32 = 0.1;
+const OPEN: f32 = 0.35;
 const WIPE_Z: f32 = 90.0;
+
+/// Whether the blinds have fully opened on the current screen.
+#[derive(Resource, Default)]
+pub struct WipeOpen(pub bool);
 
 #[derive(Component)]
 struct Blind {
@@ -23,6 +28,12 @@ pub fn blind_height(t: f32) -> f32 {
     (BLIND_H * (1.0 - open)).ceil()
 }
 
+/// Where a blind starts. Sprites are centered, so the middle of the view keeps
+/// a view-wide blind on screen from edge to edge.
+fn blind_start() -> Transform {
+    at(VIEW_W as f32 / 2.0, 0.0, WIPE_Z)
+}
+
 fn spawn_blinds(mut commands: Commands) {
     let rows = (VIEW_H as f32 / BLIND_H) as usize;
     for row in 0..rows {
@@ -32,7 +43,7 @@ fn spawn_blinds(mut commands: Commands) {
                 custom_size: Some(Vec2::ONE),
                 ..default()
             },
-            at(0.0, 0.0, WIPE_Z),
+            blind_start(),
             Blind {
                 y: row as f32 * BLIND_H,
             },
@@ -44,6 +55,7 @@ fn run_wipe(
     time: Res<Time>,
     state: Res<State<GameState>>,
     mut clock: Local<f32>,
+    mut open: ResMut<WipeOpen>,
     mut blinds: Query<(&Blind, &mut Transform, &mut Visibility)>,
 ) {
     if state.is_changed() {
@@ -51,6 +63,7 @@ fn run_wipe(
     }
     *clock += time.delta_secs();
     let height = blind_height(*clock);
+    open.0 = height <= 0.0;
     for (blind, mut transform, mut visibility) in &mut blinds {
         *visibility = if height > 0.0 {
             Visibility::Inherited
@@ -66,7 +79,8 @@ pub struct WipePlugin;
 
 impl Plugin for WipePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_blinds)
+        app.init_resource::<WipeOpen>()
+            .add_systems(Startup, spawn_blinds)
             .add_systems(Update, run_wipe);
     }
 }
@@ -82,5 +96,12 @@ mod tests {
         assert!(blind_height(HOLD + OPEN / 2.0) < BLIND_H);
         assert_eq!(blind_height(HOLD + OPEN), 0.0);
         assert_eq!(blind_height(100.0), 0.0);
+    }
+
+    #[test]
+    fn a_blind_spans_the_whole_view() {
+        let center = blind_start().translation.x;
+        assert_eq!(center - VIEW_W as f32 / 2.0, -(VIEW_W as f32) / 2.0);
+        assert_eq!(center + VIEW_W as f32 / 2.0, VIEW_W as f32 / 2.0);
     }
 }

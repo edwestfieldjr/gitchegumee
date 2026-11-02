@@ -7,8 +7,10 @@ use crate::audio::Sfx;
 use crate::content::{Content, PANEL_COLUMNS, clock_text};
 use crate::states::{EventPhase, GameState};
 use crate::ui::palette::Pal;
-use crate::ui::typing::{AfterTyping, FinishTyping, Typed, enter_may_advance, typed_lines};
-use crate::ui::{Label, label, panel_parts, rect, z};
+use crate::ui::typing::{
+    AfterHold, AfterTyping, FinishTyping, Typed, enter_may_advance, typed_lines,
+};
+use crate::ui::{Label, advance_pressed, label, panel_parts, rect, z};
 use crate::voyage::Voyage;
 
 const PANEL_X: f32 = 4.0;
@@ -77,7 +79,7 @@ fn enter_choosing(
     };
     commands.spawn((
         label(hint, TEXT_X, HINT_Y, Pal::Gray),
-        AfterTyping,
+        AfterHold,
         Visibility::Hidden,
         scope,
     ));
@@ -107,7 +109,7 @@ fn choosing_input(
             sfx.write(Sfx::Select);
         }
     }
-    if !keys.just_pressed(KeyCode::Enter) || !enter_may_advance(&typed, &mut finish) {
+    if !advance_pressed(&keys) || !enter_may_advance(&typed, &mut finish) {
         return;
     }
     sfx.write(Sfx::Select);
@@ -160,7 +162,7 @@ fn enter_result(
     }
     commands.spawn((
         label("ENTER: CONTINUE", TEXT_X, HINT_Y, Pal::Gray),
-        AfterTyping,
+        AfterHold,
         Visibility::Hidden,
         scope,
     ));
@@ -173,7 +175,7 @@ fn result_input(
     mut sfx: MessageWriter<Sfx>,
     mut game: ResMut<NextState<GameState>>,
 ) {
-    if keys.just_pressed(KeyCode::Enter) && enter_may_advance(&typed, &mut finish) {
+    if advance_pressed(&keys) && enter_may_advance(&typed, &mut finish) {
         sfx.write(Sfx::Select);
         game.set(GameState::Voyage);
     }

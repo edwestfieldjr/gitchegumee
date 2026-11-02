@@ -1,16 +1,20 @@
 //! Teletype text, so that the player gets time to read.
 //!
-//! Text types out one character at a time. Enter finishes it, and only then
-//! does the next Enter move on, so a panel cannot be skipped by accident.
+//! Text types out one character at a time. Space or Enter finishes it. The text
+//! then sits for [`HOLD_SECONDS`] before a press can move on, so a screen cannot
+//! leave before it has been read.
 
 use bevy::prelude::*;
 
 use super::font::wrap;
 use super::palette::Pal;
+use super::wipe::WipeOpen;
 use super::{CELL_LINE, Label, at, z};
 
-/// In game time, so at half pace this is 20 characters a real second.
+/// In game time, so at a `pace` of 0.25 this is 10 characters a real second.
 const CHARS_PER_SECOND: f32 = 40.0;
+/// Real seconds that finished text stays up, counted once the blinds are open.
+const HOLD_SECONDS: f32 = 3.0;
 /// Pause at the end of each line, counted in characters.
 const LINE_PAUSE_CHARS: usize = 6;
 
@@ -19,6 +23,7 @@ pub struct Typed {
     full: String,
     start: f32,
     elapsed: f32,
+    held: f32,
 }
 
 impl Typed {
@@ -31,11 +36,20 @@ impl Typed {
     pub fn finished(&self) -> bool {
         self.shown_chars() >= self.full.len()
     }
+
+    /// Finished, and on screen long enough to have been read.
+    pub fn settled(&self) -> bool {
+        self.finished() && self.held >= HOLD_SECONDS
+    }
 }
 
 /// Stays hidden until all of the text on screen has finished typing.
 #[derive(Component, Clone, Copy)]
 pub struct AfterTyping;
+
+/// Stays hidden until a press can move on from the screen.
+#[derive(Component, Clone, Copy)]
+pub struct AfterHold;
 
 /// Ask for all the text on screen to finish at once.
 #[derive(Message, Debug, Clone, Copy)]
@@ -63,16 +77,18 @@ pub fn typed_lines(
                     full: line,
                     start,
                     elapsed: 0.0,
+                    held: 0.0,
                 },
             )
         })
         .collect()
 }
 
-/// What Enter should do on a screen with typed text. Returns true when the
-/// text is all out and the screen may move on; otherwise it finishes the text.
+/// What a press should do on a screen with typed text. Returns true when the
+/// text has sat long enough for the screen to move on; otherwise it finishes
+/// any text still typing.
 pub fn enter_may_advance(typed: &Query<&Typed>, finish: &mut MessageWriter<FinishTyping>) -> bool {
-    if typed.iter().all(Typed::finished) {
+    if typed.iter().all(Typed::settled) {
         true
     } else {
         finish.write(FinishTyping);
@@ -82,6 +98,8 @@ pub fn enter_may_advance(typed: &Query<&Typed>, finish: &mut MessageWriter<Finis
 
 fn advance_typing(
     time: Res<Time>,
+    real: Res<Time<Real>>,
+    wipe: Res<WipeOpen>,
     mut finish: MessageReader<FinishTyping>,
     mut typed: Query<(&mut Typed, &mut Label)>,
 ) {
@@ -92,22 +110,34 @@ fn advance_typing(
         } else if !line.finished() {
             line.elapsed += time.delta_secs();
         }
+        if line.finished() && wipe.0 {
+            line.held += real.delta_secs();
+        }
         let shown: String = line.full.chars().take(line.shown_chars()).collect();
         label.set(shown);
     }
 }
 
+fn shown_when(done: bool) -> Visibility {
+    if done {
+        Visibility::Inherited
+    } else {
+        Visibility::Hidden
+    }
+}
+
 fn reveal_after_typing(
     typed: Query<&Typed>,
-    mut waiting: Query<&mut Visibility, With<AfterTyping>>,
+    mut after_typing: Query<&mut Visibility, (With<AfterTyping>, Without<AfterHold>)>,
+    mut after_hold: Query<&mut Visibility, (With<AfterHold>, Without<AfterTyping>)>,
 ) {
-    let done = typed.iter().all(Typed::finished);
-    for mut visibility in &mut waiting {
-        *visibility = if done {
-            Visibility::Inherited
-        } else {
-            Visibility::Hidden
-        };
+    let finished = typed.iter().all(Typed::finished);
+    for mut visibility in &mut after_typing {
+        *visibility = shown_when(finished);
+    }
+    let settled = typed.iter().all(Typed::settled);
+    for mut visibility in &mut after_hold {
+        *visibility = shown_when(settled);
     }
 }
 
@@ -129,6 +159,7 @@ mod tests {
             full: full.to_string(),
             start,
             elapsed,
+            held: 0.0,
         }
     }
 
@@ -156,6 +187,23 @@ mod tests {
     fn skipping_finishes_a_line_that_has_not_started() {
         let skipped = line("HELLO", 50.0, f32::MAX);
         assert!(skipped.finished());
+    }
+
+    #[test]
+    fn finished_text_must_sit_before_the_screen_can_leave() {
+        let mut done = line("HELLO", 0.0, 1000.0);
+        assert!(done.finished() && !done.settled());
+        done.held = HOLD_SECONDS - 0.01;
+        assert!(!done.settled());
+        done.held = HOLD_SECONDS;
+        assert!(done.settled());
+    }
+
+    #[test]
+    fn text_still_typing_never_counts_as_settled() {
+        let mut typing = line("HELLO", 50.0, 0.0);
+        typing.held = HOLD_SECONDS;
+        assert!(!typing.settled());
     }
 
     #[test]

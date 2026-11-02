@@ -6,7 +6,7 @@ use crate::audio::Sfx;
 use crate::boot::Sprites;
 use crate::states::GameState;
 use crate::ui::palette::Pal;
-use crate::ui::{at, centered, rect, z};
+use crate::ui::{advance_pressed, at, centered, rect, z};
 
 const WATERLINE: f32 = 128.0;
 const SHIP_Y: f32 = 113.0;
@@ -60,7 +60,7 @@ fn title_input(
     mut sfx: MessageWriter<Sfx>,
     mut next: ResMut<NextState<GameState>>,
 ) {
-    if keys.just_pressed(KeyCode::Enter) {
+    if advance_pressed(&keys) {
         sfx.write(Sfx::Select);
         next.set(GameState::Port);
     }
