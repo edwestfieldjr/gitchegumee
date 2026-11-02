@@ -24,6 +24,15 @@ pub enum EventPhase {
     Result,
 }
 
+/// Parts of the memorial: the words, then the bell.
+#[derive(SubStates, Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[source(GameState = GameState::Memorial)]
+pub enum MemorialPhase {
+    #[default]
+    Words,
+    Bell,
+}
+
 /// True for the whole time the ship is under way, across layer changes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct UnderWay;
@@ -46,6 +55,7 @@ impl Plugin for StatesPlugin {
     fn build(&self, app: &mut App) {
         app.init_state::<GameState>()
             .add_sub_state::<EventPhase>()
+            .add_sub_state::<MemorialPhase>()
             .add_computed_state::<UnderWay>()
             .configure_sets(
                 FixedUpdate,

@@ -2,6 +2,7 @@
 
 mod arrival;
 mod closing;
+mod detroit;
 
 use bevy::prelude::*;
 
@@ -9,18 +10,21 @@ use crate::audio::Sfx;
 use crate::boot::Sprites;
 use crate::content::{Content, clock_text};
 use crate::rng::GameRng;
-use crate::states::GameState;
+use crate::states::{GameState, MemorialPhase};
 use crate::ui::font::wrap;
 use crate::ui::palette::Pal;
 use crate::ui::typing::{AfterTyping, FinishTyping, Typed, enter_may_advance, typed_lines};
 use crate::ui::{centered, label, rect, z};
 use crate::voyage::{Ending, Voyage};
 use closing::{CLOSING_SECONDS, ClosingCues, ClosingPart, ClosingWorld, SKIP_AFTER};
+use detroit::{DetroitImage, belfry_light, build_detroit_image, scene_sprite};
 
 const COLUMNS: usize = 50;
 const TEXT_X: f32 = 10.0;
 const CREW: u32 = 29;
 const TOLL_SECONDS: f32 = 2.5;
+/// How long the belfry stays lit after each stroke.
+const BELFRY_LIT_SECONDS: f32 = 0.8;
 
 #[derive(Resource, Default)]
 pub(crate) struct OutcomeClock(f32);
@@ -29,13 +33,14 @@ fn enter_outcome(
     mut commands: Commands,
     ending: Res<Ending>,
     sprites: Res<Sprites>,
+    detroit: Res<DetroitImage>,
     content: Res<Content>,
     server: Res<AssetServer>,
     mut rng: ResMut<GameRng>,
 ) {
     commands.insert_resource(OutcomeClock::default());
     if ending.reached_bay {
-        arrival::spawn_arrival(&mut commands, &sprites, &content, &server);
+        arrival::spawn_arrival(&mut commands, &sprites, &detroit, &server);
     } else {
         closing::spawn_closing(
             &mut commands,
@@ -151,14 +156,17 @@ fn outcome_timeline(
 struct Tolling {
     clock: f32,
     rung: u32,
+    last_toll: f32,
 }
 
 #[derive(Component)]
 struct TollMark(u32);
 
-fn enter_memorial(mut commands: Commands, content: Res<Content>) {
-    commands.insert_resource(Tolling::default());
-    let scope = DespawnOnExit(GameState::Memorial);
+#[derive(Component)]
+struct BelfryLight;
+
+fn enter_memorial_words(mut commands: Commands, content: Res<Content>) {
+    let scope = DespawnOnExit(MemorialPhase::Words);
     commands.spawn((
         rect(0.0, 0.0, 320.0, 200.0, Pal::Black, z::BACKGROUND),
         scope.clone(),
@@ -168,24 +176,8 @@ fn enter_memorial(mut commands: Commands, content: Res<Content>) {
         centered(text.memorial_title.clone(), 8.0, Pal::White, 2.0),
         scope.clone(),
     ));
-    for line in typed_lines(&text.memorial_body, COLUMNS, TEXT_X, 30.0, Pal::Foam) {
+    for line in typed_lines(&text.memorial_body, COLUMNS, TEXT_X, 34.0, Pal::Foam) {
         commands.spawn((line, scope.clone()));
-    }
-    let row_width = CREW as f32 * 8.0;
-    let left = ((320.0 - row_width) / 2.0).floor();
-    for mark in 0..CREW {
-        commands.spawn((
-            rect(
-                left + mark as f32 * 8.0 + 2.0,
-                168.0,
-                4.0,
-                6.0,
-                Pal::Slate,
-                z::HUD,
-            ),
-            TollMark(mark),
-            scope.clone(),
-        ));
     }
     commands.spawn((
         centered("ENTER", 186.0, Pal::Gray, 1.0),
@@ -195,7 +187,53 @@ fn enter_memorial(mut commands: Commands, content: Res<Content>) {
     ));
 }
 
-/// How many times the bell has rung, `seconds` after the memorial opened.
+fn memorial_words_input(
+    keys: Res<ButtonInput<KeyCode>>,
+    typed: Query<&Typed>,
+    mut finish: MessageWriter<FinishTyping>,
+    mut next: ResMut<NextState<MemorialPhase>>,
+) {
+    if keys.just_pressed(KeyCode::Enter) && enter_may_advance(&typed, &mut finish) {
+        next.set(MemorialPhase::Bell);
+    }
+}
+
+fn enter_memorial_bell(mut commands: Commands, content: Res<Content>, detroit: Res<DetroitImage>) {
+    commands.insert_resource(Tolling::default());
+    let scope = DespawnOnExit(MemorialPhase::Bell);
+    commands.spawn((scene_sprite(&detroit), scope.clone()));
+    for light in belfry_light() {
+        commands.spawn((light, BelfryLight, Visibility::Hidden, scope.clone()));
+    }
+    commands.spawn((
+        centered(
+            content.text.memorial_bell_caption.clone(),
+            6.0,
+            Pal::Foam,
+            1.0,
+        ),
+        scope.clone(),
+    ));
+    let row_width = CREW as f32 * 8.0;
+    let left = ((320.0 - row_width) / 2.0).floor();
+    for mark in 0..CREW {
+        commands.spawn((
+            rect(
+                left + mark as f32 * 8.0 + 2.0,
+                170.0,
+                4.0,
+                6.0,
+                Pal::Slate,
+                z::HUD,
+            ),
+            TollMark(mark),
+            scope.clone(),
+        ));
+    }
+    commands.spawn((centered("ENTER", 186.0, Pal::Gray, 1.0), scope));
+}
+
+/// How many times the bell has rung, `seconds` after it began.
 fn tolls_by(seconds: f32) -> u32 {
     ((seconds / TOLL_SECONDS) as u32 + 1).min(CREW)
 }
@@ -203,10 +241,9 @@ fn tolls_by(seconds: f32) -> u32 {
 fn ring_bell(
     time: Res<Time>,
     keys: Res<ButtonInput<KeyCode>>,
-    typed: Query<&Typed>,
-    mut finish: MessageWriter<FinishTyping>,
     mut tolling: ResMut<Tolling>,
     mut marks: Query<(&TollMark, &mut Sprite)>,
+    mut lights: Query<&mut Visibility, With<BelfryLight>>,
     mut sfx: MessageWriter<Sfx>,
     mut next: ResMut<NextState<GameState>>,
 ) {
@@ -214,6 +251,7 @@ fn ring_bell(
     let due = tolls_by(tolling.clock);
     if due > tolling.rung {
         tolling.rung = due;
+        tolling.last_toll = tolling.clock;
         sfx.write(Sfx::Bell);
         for (mark, mut sprite) in &mut marks {
             if mark.0 < due {
@@ -221,7 +259,15 @@ fn ring_bell(
             }
         }
     }
-    if keys.just_pressed(KeyCode::Enter) && enter_may_advance(&typed, &mut finish) {
+    let lit = tolling.clock - tolling.last_toll < BELFRY_LIT_SECONDS;
+    for mut visibility in &mut lights {
+        *visibility = if lit {
+            Visibility::Inherited
+        } else {
+            Visibility::Hidden
+        };
+    }
+    if keys.just_pressed(KeyCode::Enter) {
         next.set(GameState::Title);
     }
 }
@@ -230,15 +276,18 @@ pub struct OutcomePlugin;
 
 impl Plugin for OutcomePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(GameState::Outcome), enter_outcome)
-            .add_systems(OnEnter(GameState::Memorial), enter_memorial)
+        app.add_systems(Startup, build_detroit_image)
+            .add_systems(OnEnter(GameState::Outcome), enter_outcome)
+            .add_systems(OnEnter(MemorialPhase::Words), enter_memorial_words)
+            .add_systems(OnEnter(MemorialPhase::Bell), enter_memorial_bell)
             .add_systems(
                 Update,
                 (
                     (outcome_timeline, arrival::draw_arrival)
                         .chain()
                         .run_if(in_state(GameState::Outcome)),
-                    ring_bell.run_if(in_state(GameState::Memorial)),
+                    memorial_words_input.run_if(in_state(MemorialPhase::Words)),
+                    ring_bell.run_if(in_state(MemorialPhase::Bell)),
                 ),
             );
     }

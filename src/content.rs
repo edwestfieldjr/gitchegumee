@@ -289,7 +289,7 @@ pub struct Texts {
     pub closing_position: String,
     pub lost_title: String,
     pub lost_body: String,
-    pub arrival_caption: String,
+    pub memorial_bell_caption: String,
     pub reached_title: String,
     pub reached_body: String,
     pub memorial_title: String,

@@ -5,7 +5,7 @@ pub mod sim;
 use bevy::prelude::*;
 
 use crate::audio::Sfx;
-use crate::boot::Sprites;
+use crate::boot::{FRAME_SIZE, HELM_ANGLES, Sprites};
 use crate::content::{Content, Effect, HelmDef, SpeedOrder, clock_text};
 use crate::events::{ActiveHelm, ApplyEffect};
 use crate::rng::GameRng;
@@ -20,15 +20,13 @@ use sim::{
     plan_section,
 };
 
-const FRAME: f32 = 80.0;
+const FRAME: f32 = FRAME_SIZE as f32;
+/// Where the rudder must be to show the small and the full turn frames.
+const SMALL_TURN_AT: f32 = 0.35;
+const FULL_TURN_AT: f32 = 0.75;
 /// Width of one column of a drawn wave, and the depth of its whitecap.
 const CREST_COLUMN: f32 = 6.0;
 const CREST_CAP: f32 = 2.0;
-/// Sheet columns of the frames used, in the order N NE E SE S SW W NW.
-const FRAME_N: usize = 0;
-const FRAME_NE: usize = 1;
-const FRAME_NW: usize = 7;
-const TURN_FRAME_AT: f32 = 0.75;
 const SIDE_X: f32 = 258.0;
 const RADAR_X: f32 = 259.0;
 const RADAR_Y: f32 = 62.0;
@@ -134,6 +132,24 @@ fn scroll_speed(section: &HelmDef, order: SpeedOrder) -> f32 {
         }
 }
 
+/// The column of `HELM_ANGLES` to show for a rudder position.
+fn turn_frame(rudder: f32) -> usize {
+    let center = HELM_ANGLES.len() / 2;
+    let magnitude = rudder.abs();
+    let steps = if magnitude > FULL_TURN_AT {
+        2
+    } else if magnitude > SMALL_TURN_AT {
+        1
+    } else {
+        0
+    };
+    if rudder < 0.0 {
+        center - steps
+    } else {
+        center + steps
+    }
+}
+
 fn frame_rect(column: usize) -> Rect {
     let x = column as f32 * FRAME;
     Rect::new(x, 0.0, x + FRAME, FRAME)
@@ -191,8 +207,8 @@ fn enter_helm(
     }
     commands.spawn((
         Sprite {
-            image: sprites.topdown.clone(),
-            rect: Some(frame_rect(FRAME_N)),
+            image: sprites.helm_frames.clone(),
+            rect: Some(frame_rect(turn_frame(0.0))),
             ..default()
         },
         at(FIELD_W / 2.0, SHIP_TOP + SHIP_H / 2.0, z::SHIP),
@@ -463,14 +479,7 @@ fn draw_field(
         transform.translation.y = 100.0 - y - part.drop - part.height / 2.0 + heave;
     }
     for (mut sprite, mut transform) in &mut player {
-        let column = if run.sim.rudder > TURN_FRAME_AT {
-            FRAME_NE
-        } else if run.sim.rudder < -TURN_FRAME_AT {
-            FRAME_NW
-        } else {
-            FRAME_N
-        };
-        sprite.rect = Some(frame_rect(column));
+        sprite.rect = Some(frame_rect(turn_frame(run.sim.rudder)));
         transform.translation.x = run.sim.ship_x.round() - 160.0;
     }
     let scroll = scroll_speed(&run.section, ship.order);
@@ -709,6 +718,16 @@ mod tests {
             .collect();
         assert!(heaves.iter().all(|h| h.fract() == 0.0 && h.abs() <= 2.0));
         assert!(heaves.iter().any(|h| *h != heaves[0]));
+    }
+
+    #[test]
+    fn the_ship_leans_no_more_than_fifteen_degrees() {
+        assert_eq!(HELM_ANGLES[turn_frame(0.0)], 0.0);
+        assert_eq!(HELM_ANGLES[turn_frame(0.1)], 0.0);
+        assert_eq!(HELM_ANGLES[turn_frame(0.5)], 8.0);
+        assert_eq!(HELM_ANGLES[turn_frame(1.0)], 15.0);
+        assert_eq!(HELM_ANGLES[turn_frame(-0.5)], -8.0);
+        assert_eq!(HELM_ANGLES[turn_frame(-1.0)], -15.0);
     }
 
     #[test]

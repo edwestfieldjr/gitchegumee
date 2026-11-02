@@ -14,7 +14,7 @@ use bevy::render::view::screenshot::{Screenshot, save_to_disk};
 
 use crate::content::{At, Content};
 use crate::events::ActiveEvent;
-use crate::states::GameState;
+use crate::states::{GameState, MemorialPhase};
 use crate::voyage::Ending;
 use crate::voyage::route::LatLon;
 
@@ -24,7 +24,7 @@ const SECONDS_AT_OUTCOME: f32 = 26.0;
 /// Seconds to wait for shaders to compile before autoplay starts.
 const AUTOPLAY_WARMUP: f32 = 14.0;
 const PRESS_EVERY: f32 = 0.4;
-const SECONDS_AT_MEMORIAL: f32 = 8.0;
+const SECONDS_AT_MEMORIAL: f32 = 14.0;
 
 fn timed_shot(
     mut commands: Commands,
@@ -75,12 +75,17 @@ fn state_shots(
     if *shown != Some(*state.get()) {
         *shown = Some(*state.get());
         *since = time.elapsed_secs();
+        *outcome_shots = 0;
         *pending = true;
         info!("state: {:?}", state.get());
     }
     // The outcome screen is a timed sequence, so capture it repeatedly.
     let elapsed = time.elapsed_secs() - *since;
-    if *state.get() == GameState::Outcome && elapsed >= *outcome_shots as f32 + 1.0 {
+    let timed = matches!(
+        state.get(),
+        GameState::Outcome | GameState::Memorial | GameState::Helm
+    );
+    if timed && elapsed >= *outcome_shots as f32 + 1.0 {
         *outcome_shots += 1;
         *pending = true;
     }
@@ -104,6 +109,7 @@ struct Autoplay {
     memorial_since: Option<f32>,
     outcome_since: Option<f32>,
     ran_all_pumps: bool,
+    jumped: bool,
 }
 
 /// Press keys through the normal input resource, so the game's own input
@@ -115,6 +121,7 @@ fn autoplay(
     mut exit: MessageWriter<AppExit>,
     mut commands: Commands,
     mut next: ResMut<NextState<GameState>>,
+    memorial: Option<Res<State<MemorialPhase>>>,
     active: Option<Res<ActiveEvent>>,
     content: Option<Res<Content>>,
     mut play: Local<Autoplay>,
@@ -127,20 +134,11 @@ fn autoplay(
     for key in std::mem::take(&mut play.held) {
         keys.release(key);
     }
-    if now < AUTOPLAY_WARMUP {
-        return;
-    }
-    if *state.get() == GameState::Voyage {
-        keys.press(KeyCode::Space);
-    } else {
-        keys.release(KeyCode::Space);
-    }
-    if now - play.last_press < PRESS_EVERY {
-        return;
-    }
-    let jump = std::env::var("DOWNBOUND_JUMP").ok();
+    // Jump at once. A window that takes focus can get stray keypresses, and
+    // waiting would give them time to move the game off the title screen.
     if *state.get() == GameState::Title
-        && let Some(jump) = jump.as_deref()
+        && let Ok(jump) = std::env::var("DOWNBOUND_JUMP")
+        && !std::mem::replace(&mut play.jumped, true)
     {
         commands.insert_resource(Ending {
             reached_bay: jump == "reached",
@@ -151,6 +149,17 @@ fn autoplay(
             },
         });
         next.set(GameState::Outcome);
+        return;
+    }
+    if now < AUTOPLAY_WARMUP {
+        return;
+    }
+    if *state.get() == GameState::Voyage {
+        keys.press(KeyCode::Space);
+    } else {
+        keys.release(KeyCode::Space);
+    }
+    if now - play.last_press < PRESS_EVERY {
         return;
     }
     let key = match state.get() {
@@ -201,7 +210,15 @@ fn autoplay(
             if now - since > SECONDS_AT_MEMORIAL {
                 exit.write(AppExit::Success);
             }
-            return;
+            // Finish the words and move on to the bell, then leave it ringing:
+            // Enter on the bell page would return to the title.
+            let on_words = memorial
+                .as_ref()
+                .is_some_and(|phase| *phase.get() == MemorialPhase::Words);
+            if !on_words {
+                return;
+            }
+            KeyCode::Enter
         }
         _ => KeyCode::Enter,
     };

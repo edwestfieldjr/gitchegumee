@@ -110,6 +110,27 @@ pub fn silhouette_rgba(pixels: &mut [u8]) {
     }
 }
 
+/// Rotate square RGBA8 art clockwise about its center. Each pixel is taken
+/// whole from the source, so no new colors appear.
+pub fn rotate_rgba(source: &[u8], size: usize, degrees: f32) -> Vec<u8> {
+    let (sin, cos) = degrees.to_radians().sin_cos();
+    let center = size as f32 / 2.0;
+    let mut out = vec![0u8; size * size * 4];
+    for y in 0..size {
+        for x in 0..size {
+            let (dx, dy) = (x as f32 + 0.5 - center, y as f32 + 0.5 - center);
+            let sx = (cos * dx + sin * dy + center).floor();
+            let sy = (cos * dy - sin * dx + center).floor();
+            if sx >= 0.0 && sy >= 0.0 && (sx as usize) < size && (sy as usize) < size {
+                let from = (sy as usize * size + sx as usize) * 4;
+                let to = (y * size + x) * 4;
+                out[to..to + 4].copy_from_slice(&source[from..from + 4]);
+            }
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -128,6 +149,31 @@ mod tests {
         let mut pixels = [9, 9, 9, 0, 128, 24, 16, 255];
         silhouette_rgba(&mut pixels);
         assert_eq!(pixels, [0, 0, 0, 0, 255, 255, 255, 255]);
+    }
+
+    #[test]
+    fn rotation_turns_clockwise_and_invents_no_colors() {
+        // One red pixel straight above the center of a 20x20 square.
+        let size = 20;
+        let mut art = vec![0u8; size * size * 4];
+        let (x, y) = (10, 2);
+        art[(y * size + x) * 4..(y * size + x) * 4 + 4].copy_from_slice(&[200, 40, 30, 255]);
+        let turned = rotate_rgba(&art, size, 90.0);
+        let lit: Vec<usize> = (0..size * size)
+            .filter(|index| turned[index * 4 + 3] == 255)
+            .collect();
+        assert!(!lit.is_empty());
+        for index in lit {
+            let (px, py) = (index % size, index / size);
+            assert!(px > 14, "should end up on the right, at {px},{py}");
+            assert_eq!(&turned[index * 4..index * 4 + 4], &[200, 40, 30, 255]);
+        }
+    }
+
+    #[test]
+    fn rotating_by_zero_changes_nothing() {
+        let art: Vec<u8> = (0..16 * 16 * 4).map(|value| value as u8).collect();
+        assert_eq!(rotate_rgba(&art, 16, 0.0), art);
     }
 
     #[test]
