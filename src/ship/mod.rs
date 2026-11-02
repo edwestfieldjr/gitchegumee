@@ -12,6 +12,8 @@ use crate::weather::Weather;
 pub const PUMPS: usize = 6;
 pub const RADARS: usize = 2;
 const MAX_LEVEL: f32 = 100.0;
+/// Crew fatigue from putting a failed pump back on line.
+const REPAIR_FATIGUE: f32 = 3.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Pump {
@@ -26,6 +28,7 @@ pub struct ShipDamage {
     pub hull: f32,
     pub water: f32,
     pub list: f32,
+    pub rogue: bool,
 }
 
 #[derive(Resource, Debug, Clone)]
@@ -203,6 +206,10 @@ impl Ship {
                         Pump::Standby
                     };
                 }
+            }
+            Effect::TogglePump(index) => self.toggle_pump(*index),
+            Effect::RepairPump => {
+                self.repair_pump(REPAIR_FATIGUE);
             }
             Effect::RadarDown(index) => {
                 if let Some(radar) = self.radars.get_mut(*index) {

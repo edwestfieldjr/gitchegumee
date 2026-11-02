@@ -1,5 +1,9 @@
 //! The voyage: clock, position along the route, decisions, and how it ends.
 
+#[cfg(test)]
+mod balance_tests;
+pub mod map;
+pub mod port;
 pub mod route;
 pub mod screen;
 
@@ -10,12 +14,15 @@ use bevy::prelude::*;
 use crate::content::{Balance, Chart, Content, Effect, RouteId, Survival};
 use crate::events::ApplyEffect;
 use crate::rng::{GameRng, choose_seed};
-use crate::ship::{SeaState, Ship};
+use crate::ship::{SeaState, Ship, ShipDamage};
 use crate::states::{GameState, SimSet, sim_running};
+use crate::ui::font::wrap;
 use route::{LatLon, path_heading, path_length, path_point, reroute};
 
 /// Radio log lines kept for the voyage screen.
 const LOG_LINES: usize = 40;
+/// Text columns of the radio log.
+const LOG_COLUMNS: usize = 50;
 
 /// Voyage minutes passing in this fixed step.
 #[derive(Resource, Debug, Clone, Copy, Default)]
@@ -24,6 +31,8 @@ pub struct SimStep(pub f32);
 /// Clock minutes per real second while under way. Set by the active layer.
 #[derive(Resource, Debug, Clone, Copy, Default)]
 pub struct ClockRate(pub f32);
+
+const NORTH_ROUTE_FLAG: &str = "north_route";
 
 #[derive(Resource, Debug, Clone)]
 pub struct Voyage {
@@ -69,13 +78,17 @@ impl Voyage {
             .route(route)
             .map(|def| def.points.iter().map(LatLon::from).collect())
             .unwrap_or_default();
-        Self {
+        let mut voyage = Self {
             minute,
             route,
             path,
             departed_at: minute,
             ..Self::default()
+        };
+        if route == RouteId::North {
+            voyage.flags.insert(NORTH_ROUTE_FLAG.to_string());
         }
+        voyage
     }
 
     pub fn has_flag(&self, flag: &str) -> bool {
@@ -125,10 +138,9 @@ impl Voyage {
     }
 
     pub fn add_log(&mut self, line: impl Into<String>) {
-        self.log.push(line.into());
-        if self.log.len() > LOG_LINES {
-            self.log.remove(0);
-        }
+        self.log.extend(wrap(&line.into(), LOG_COLUMNS));
+        let excess = self.log.len().saturating_sub(LOG_LINES);
+        self.log.drain(..excess);
     }
 
     /// Apply an event effect. Effects for the ship are ignored here.
@@ -145,6 +157,11 @@ impl Voyage {
                     self.nm = 0.0;
                     self.route = *id;
                 }
+                if *id == RouteId::North {
+                    self.flags.insert(NORTH_ROUTE_FLAG.to_string());
+                } else {
+                    self.flags.remove(NORTH_ROUTE_FLAG);
+                }
             }
             Effect::Lee(minutes) => self.lee_until = self.minute + minutes,
             Effect::Delay(minutes) => self.minute += minutes,
@@ -156,6 +173,8 @@ impl Voyage {
             | Effect::Topside
             | Effect::PumpDown(_)
             | Effect::PumpsRun(_)
+            | Effect::TogglePump(_)
+            | Effect::RepairPump
             | Effect::RadarDown(_)
             | Effect::Speed(_) => {}
         }
@@ -251,7 +270,10 @@ fn resolve_fate(
     };
     match check_fate(&ship, &voyage, &content.balance) {
         Fate::Continue => {}
-        Fate::PassGate => voyage.past_gate = true,
+        Fate::PassGate => {
+            voyage.past_gate = true;
+            voyage.add_log("THE ANDERSON STILL HAS YOU ON HER RADAR.");
+        }
         Fate::Lost => finish(false, &voyage),
         Fate::Reached => finish(true, &voyage),
     }
@@ -264,6 +286,15 @@ fn take_effects(
 ) {
     for ApplyEffect(effect) in effects.read() {
         voyage.apply_effect(effect, &content.chart);
+    }
+}
+
+fn count_hits(mut damage: MessageReader<ShipDamage>, mut voyage: ResMut<Voyage>) {
+    for hit in damage.read() {
+        voyage.hazard_hits += 1;
+        if hit.rogue {
+            voyage.rogue_hits += 1;
+        }
     }
 }
 
@@ -296,9 +327,10 @@ impl Plugin for VoyagePlugin {
                 (
                     resolve_fate.run_if(in_state(GameState::Voyage)),
                     take_effects,
+                    count_hits,
                 ),
             )
-            .add_plugins(screen::VoyageScreenPlugin);
+            .add_plugins((map::MapPlugin, port::PortPlugin, screen::VoyageScreenPlugin));
     }
 }
 
@@ -417,16 +449,19 @@ mod tests {
             }
         ));
 
-        for flag in [
-            "kept_pace",
-            "anderson_guidance",
-            "wide_of_caribou",
-            "took_lee",
-        ] {
+        for flag in ["kept_pace", "anderson_guidance", "wide_of_caribou"] {
             let mut missing = voyage.clone();
             missing.flags.remove(flag);
             assert!(lost(&ship, &missing), "{flag}");
         }
+        let mut exposed = voyage.clone();
+        exposed.flags.remove("took_lee");
+        assert!(
+            !lost(&ship, &exposed),
+            "the north route alone gives shelter"
+        );
+        exposed.flags.remove("north_route");
+        assert!(lost(&ship, &exposed), "no shelter of either kind");
         let mut pushed = voyage.clone();
         pushed.flags.insert("pushed".to_string());
         assert!(lost(&ship, &pushed));

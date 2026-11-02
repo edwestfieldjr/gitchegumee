@@ -7,6 +7,7 @@ mod events;
 mod rng;
 mod ship;
 mod states;
+mod title;
 mod ui;
 mod voyage;
 mod weather;

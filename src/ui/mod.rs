@@ -149,6 +149,54 @@ fn draw_labels(
     }
 }
 
+/// A horizontal gauge. Set `value` from 0 to 1.
+#[derive(Component, Debug, Clone, Copy)]
+pub struct Bar {
+    pub x: f32,
+    pub y: f32,
+    pub w: f32,
+    pub h: f32,
+    pub value: f32,
+}
+
+impl Bar {
+    pub fn new(x: f32, y: f32, w: f32, h: f32) -> Self {
+        Self {
+            x,
+            y,
+            w,
+            h,
+            value: 0.0,
+        }
+    }
+
+    /// Filled width in whole pixels.
+    pub fn filled(&self) -> f32 {
+        (self.w * self.value.clamp(0.0, 1.0)).round()
+    }
+}
+
+fn draw_bars(mut bars: Query<(&Bar, &mut Sprite, &mut Transform), Changed<Bar>>) {
+    for (bar, mut sprite, mut transform) in &mut bars {
+        let width = bar.filled();
+        sprite.custom_size = Some(Vec2::new(width, bar.h));
+        let placed = at(
+            bar.x + width / 2.0,
+            bar.y + bar.h / 2.0,
+            transform.translation.z,
+        );
+        transform.translation = placed.translation;
+    }
+}
+
+/// A gauge's backing and its fill, in that order.
+pub fn bar_parts(bar: Bar, fill: Pal, back: Pal) -> (impl Bundle, impl Bundle) {
+    (
+        rect(bar.x, bar.y, bar.w, bar.h, back, z::HUD),
+        (bar, rect(bar.x, bar.y, 0.0, bar.h, fill, z::HUD + 1.0)),
+    )
+}
+
 #[derive(Component)]
 struct ViewQuad;
 
@@ -218,7 +266,7 @@ impl Plugin for UiPlugin {
         app.insert_resource(FontImage(font))
             .add_systems(Startup, setup_view)
             .add_systems(Update, fit_view)
-            .add_systems(PostUpdate, draw_labels);
+            .add_systems(PostUpdate, (draw_labels, draw_bars));
     }
 }
 
@@ -231,6 +279,15 @@ mod tests {
         assert_eq!(integer_scale(960, 600), 3);
         assert_eq!(integer_scale(1000, 610), 3);
         assert_eq!(integer_scale(1920, 1080), 5);
+    }
+
+    #[test]
+    fn bars_fill_in_whole_pixels_and_clamp() {
+        let mut bar = Bar::new(0.0, 0.0, 40.0, 4.0);
+        bar.value = 0.33;
+        assert_eq!(bar.filled(), 13.0);
+        bar.value = 2.0;
+        assert_eq!(bar.filled(), 40.0);
     }
 
     #[test]

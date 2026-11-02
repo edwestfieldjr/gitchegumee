@@ -5,8 +5,8 @@ use bevy::prelude::*;
 
 use crate::content::{Content, ContentFiles, RonText, start_content_load};
 use crate::states::GameState;
+use crate::ui::centered;
 use crate::ui::palette::{Pal, remap_rgba};
-use crate::ui::{centered, rect, z};
 
 #[derive(Resource, Clone)]
 pub struct Sprites {
@@ -77,32 +77,6 @@ fn finish_loading(
     next.set(GameState::Title);
 }
 
-fn enter_title(mut commands: Commands, sprites: Res<Sprites>) {
-    let scope = DespawnOnExit(GameState::Title);
-    commands.spawn((
-        rect(0.0, 0.0, 320.0, 200.0, Pal::Night, z::BACKGROUND),
-        scope.clone(),
-    ));
-    commands.spawn((
-        centered("GITCHE GUMEE", 32.0, Pal::White, 3.0),
-        scope.clone(),
-    ));
-    commands.spawn((
-        centered(
-            "THE LAST VOYAGE OF THE EDMUND FITZGERALD",
-            62.0,
-            Pal::Foam,
-            1.0,
-        ),
-        scope.clone(),
-    ));
-    commands.spawn((
-        Sprite::from_image(sprites.side.clone()),
-        crate::ui::at(160.0, 110.0, z::SHIP),
-        scope,
-    ));
-}
-
 pub struct BootPlugin;
 
 impl Plugin for BootPlugin {
@@ -111,7 +85,6 @@ impl Plugin for BootPlugin {
             OnEnter(GameState::Boot),
             (start_loading, start_content_load),
         )
-        .add_systems(Update, finish_loading.run_if(in_state(GameState::Boot)))
-        .add_systems(OnEnter(GameState::Title), enter_title);
+        .add_systems(Update, finish_loading.run_if(in_state(GameState::Boot)));
     }
 }

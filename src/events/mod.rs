@@ -1,10 +1,23 @@
 //! Text events, radio traffic, and the schedule that fires them.
 
+mod screen;
+
 use bevy::prelude::*;
 
-use crate::content::{Condition, Content, Effect, EventDef};
+use crate::audio::Sfx;
+use crate::content::{Condition, Content, Effect, EventDef, EventMode};
+use crate::rng::GameRng;
 use crate::ship::Ship;
+use crate::states::GameState;
 use crate::voyage::Voyage;
+
+/// The panel event on screen.
+#[derive(Resource, Debug, Clone, Copy)]
+pub struct ActiveEvent(pub usize);
+
+/// The helm section to run.
+#[derive(Resource, Debug, Clone, Copy)]
+pub struct ActiveHelm(pub usize);
 
 /// An event's effect, handled by whichever plugin owns the state it touches.
 #[derive(Message, Debug, Clone)]
@@ -68,11 +81,62 @@ impl Timeline {
     }
 }
 
+fn reset_timeline(content: Res<Content>, mut timeline: ResMut<Timeline>) {
+    *timeline = Timeline::new(&content);
+}
+
+/// Fire whatever has come due. Log lines stack up; a panel or helm section
+/// stops the voyage layer until it is done.
+#[allow(clippy::too_many_arguments)] // A Bevy system: each parameter is a resource it needs.
+fn run_timeline(
+    mut commands: Commands,
+    content: Res<Content>,
+    ship: Res<Ship>,
+    mut timeline: ResMut<Timeline>,
+    mut voyage: ResMut<Voyage>,
+    mut rng: ResMut<GameRng>,
+    mut effects: MessageWriter<ApplyEffect>,
+    mut sfx: MessageWriter<Sfx>,
+    mut next: ResMut<NextState<GameState>>,
+) {
+    while let Some(item) = timeline.pop_due(voyage.minute) {
+        match item {
+            Scheduled::Helm(index) => {
+                commands.insert_resource(ActiveHelm(index));
+                next.set(GameState::Helm);
+                return;
+            }
+            Scheduled::Event(index) => {
+                let event = &content.events[index];
+                if !event_applies(event, &ship, &voyage) || !rng.chance(event.chance) {
+                    continue;
+                }
+                for effect in &event.effects {
+                    effects.write(ApplyEffect(effect.clone()));
+                }
+                sfx.write(Sfx::Radio);
+                match event.mode {
+                    EventMode::Log => voyage.add_log(event.body.clone()),
+                    EventMode::Panel => {
+                        commands.insert_resource(ActiveEvent(index));
+                        next.set(GameState::Event);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+}
+
 pub struct EventsPlugin;
 
 impl Plugin for EventsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_message::<ApplyEffect>().init_resource::<Timeline>();
+        app.add_message::<ApplyEffect>()
+            .init_resource::<Timeline>()
+            .add_systems(OnEnter(GameState::Port), reset_timeline)
+            .add_systems(Update, run_timeline.run_if(in_state(GameState::Voyage)))
+            .add_plugins(screen::EventScreenPlugin);
     }
 }
 
