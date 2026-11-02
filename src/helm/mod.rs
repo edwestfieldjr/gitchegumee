@@ -671,11 +671,23 @@ fn auto_steer(run: Res<HelmRun>, mut input: ResMut<HelmInput>) {
     }
 }
 
+/// Swap the game speed for the helm's, keeping any dev speed-up on top of it.
+fn speed_up_for_helm(content: Res<Content>, mut time: ResMut<Time<Virtual>>) {
+    let speed = time.relative_speed() * content.balance.helm_pace / content.balance.pace;
+    time.set_relative_speed(speed);
+}
+
+fn restore_game_speed(content: Res<Content>, mut time: ResMut<Time<Virtual>>) {
+    let speed = time.relative_speed() * content.balance.pace / content.balance.helm_pace;
+    time.set_relative_speed(speed);
+}
+
 pub struct HelmPlugin;
 
 impl Plugin for HelmPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(GameState::Helm), enter_helm)
+        app.add_systems(OnEnter(GameState::Helm), (speed_up_for_helm, enter_helm))
+            .add_systems(OnExit(GameState::Helm), restore_game_speed)
             .add_systems(
                 FixedUpdate,
                 (

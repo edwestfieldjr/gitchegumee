@@ -1,6 +1,8 @@
 (
     // Master game speed. 1.0 is the speed the numbers below are written for.
     pace: 0.25,
+    // Game speed during a race, in place of `pace`.
+    helm_pace: 0.33,
     // Clock speed crossing the chart once orders are given, in game time. At a
     // pace of 0.25 the longest leg between races takes about 5 real seconds.
     voyage_minutes_per_second: 520.0,

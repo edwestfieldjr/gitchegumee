@@ -267,6 +267,8 @@ pub struct Survival {
 pub struct Balance {
     /// Master game speed, applied to the whole game clock.
     pub pace: f32,
+    /// Game speed during a helm section, in place of `pace`.
+    pub helm_pace: f32,
     pub voyage_minutes_per_second: f32,
     pub last_contact_gate: At,
     pub final_stretch_nm: f32,
@@ -417,8 +419,8 @@ impl Content {
         if balance.clamp_levels.is_empty() {
             errors.push("balance: no clamp levels".to_string());
         }
-        if balance.pace <= 0.0 {
-            errors.push("balance: pace must be above zero".to_string());
+        if balance.pace <= 0.0 || balance.helm_pace <= 0.0 {
+            errors.push("balance: pace and helm_pace must be above zero".to_string());
         }
         if balance.voyage_minutes_per_second <= 0.0 {
             errors.push("balance: the voyage clock must run forward".to_string());
