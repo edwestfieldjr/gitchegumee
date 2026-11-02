@@ -1,23 +1,28 @@
 //! How the voyage ended, and the memorial.
 
+mod closing;
+
 use bevy::prelude::*;
 
 use crate::audio::Sfx;
+use crate::boot::Sprites;
 use crate::content::{Content, clock_text};
+use crate::rng::GameRng;
 use crate::states::GameState;
+use crate::ui::font::wrap;
 use crate::ui::palette::Pal;
-use crate::ui::{at, centered, label, rect, wrapped_lines, z};
+use crate::ui::typing::{AfterTyping, FinishTyping, Typed, enter_may_advance, typed_lines};
+use crate::ui::{at, centered, label, rect, z};
 use crate::voyage::map::{MAP_H, MAP_W, MapImage, project};
 use crate::voyage::{Ending, Voyage};
+use closing::{CLOSING_SECONDS, ClosingCues, ClosingPart, ClosingWorld, SKIP_AFTER};
 
 const COLUMNS: usize = 50;
 const TEXT_X: f32 = 10.0;
 const MAP_X: f32 = 48.0;
 const MAP_Y: f32 = 41.0;
-/// Seconds the chart holds with the ship on it, before she is no longer shown.
-const BLIP_SECONDS: f32 = 3.0;
 /// Seconds before the words come up.
-const TEXT_AFTER: f32 = 6.0;
+const TEXT_AFTER: f32 = 4.0;
 const CREW: u32 = 29;
 const TOLL_SECONDS: f32 = 2.5;
 
@@ -27,12 +32,28 @@ struct OutcomeClock(f32);
 #[derive(Component)]
 struct ChartPart;
 
-#[derive(Component)]
-struct ShipBlip;
-
-fn enter_outcome(mut commands: Commands, ending: Res<Ending>, map: Res<MapImage>) {
+fn enter_outcome(
+    mut commands: Commands,
+    ending: Res<Ending>,
+    map: Res<MapImage>,
+    sprites: Res<Sprites>,
+    content: Res<Content>,
+    server: Res<AssetServer>,
+    mut rng: ResMut<GameRng>,
+) {
     commands.insert_resource(OutcomeClock::default());
     let scope = DespawnOnExit(GameState::Outcome);
+    if !ending.reached_bay {
+        closing::spawn_closing(
+            &mut commands,
+            &sprites,
+            &content,
+            &ending,
+            &mut rng,
+            &server,
+        );
+        return;
+    }
     commands.spawn((
         rect(0.0, 0.0, 320.0, 200.0, Pal::Black, z::BACKGROUND),
         scope.clone(),
@@ -57,7 +78,7 @@ fn enter_outcome(mut commands: Commands, ending: Res<Ending>, map: Res<MapImage>
             Pal::Yellow,
             z::SHIP,
         ),
-        ShipBlip,
+        ChartPart,
         scope,
     ));
 }
@@ -69,23 +90,39 @@ fn outcome_timeline(
     ending: Res<Ending>,
     voyage: Res<Voyage>,
     content: Res<Content>,
+    sprites: Res<Sprites>,
+    typed: Query<&Typed>,
+    mut finish: MessageWriter<FinishTyping>,
     mut clock: ResMut<OutcomeClock>,
-    blip: Query<Entity, With<ShipBlip>>,
-    chart: Query<Entity, With<ChartPart>>,
+    mut cues: Option<ResMut<ClosingCues>>,
+    mut world: ClosingWorld,
+    parts: Query<Entity, Or<(With<ChartPart>, With<ClosingPart>)>>,
+    mut sfx: MessageWriter<Sfx>,
     mut next: ResMut<NextState<GameState>>,
 ) {
+    let words_at = if ending.reached_bay {
+        TEXT_AFTER
+    } else {
+        CLOSING_SECONDS
+    };
     let before = clock.0;
     clock.0 += time.delta_secs();
-    let crossed = |mark: f32| before < mark && clock.0 >= mark;
-
-    // The ship simply stops being shown, unless she made it.
-    if crossed(BLIP_SECONDS) && !ending.reached_bay {
-        for entity in &blip {
-            commands.entity(entity).despawn();
-        }
+    if !ending.reached_bay
+        && before < words_at
+        && before >= SKIP_AFTER
+        && keys.just_pressed(KeyCode::Enter)
+    {
+        clock.0 = words_at;
     }
-    if crossed(TEXT_AFTER) {
-        for entity in chart.iter().chain(blip.iter()) {
+    let reached_words = before < words_at && clock.0 >= words_at;
+
+    if clock.0 < words_at
+        && let Some(cues) = cues.as_deref_mut()
+    {
+        closing::draw_closing(clock.0, &time, cues, &sprites, &mut sfx, &mut world);
+    }
+    if reached_words {
+        for entity in &parts {
             commands.entity(entity).try_despawn();
         }
         let scope = DespawnOnExit(GameState::Outcome);
@@ -99,12 +136,10 @@ fn outcome_timeline(
             centered(title.clone(), 16.0, Pal::White, 2.0),
             scope.clone(),
         ));
-        let lines = wrapped_lines(body, COLUMNS, 44.0);
-        let mut bottom = 44.0;
-        for (line, y) in lines {
-            bottom = y;
-            commands.spawn((label(line, TEXT_X, y, Pal::Foam), scope.clone()));
+        for line in typed_lines(body, COLUMNS, TEXT_X, 44.0, Pal::Foam) {
+            commands.spawn((line, scope.clone()));
         }
+        let bottom = 44.0 + (wrap(body, COLUMNS).len() - 1) as f32 * 8.0;
         let gate = content.balance.last_contact_gate.minute();
         if !ending.reached_bay && ending.minute < gate {
             commands.spawn((
@@ -117,6 +152,8 @@ fn outcome_timeline(
                     bottom + 14.0,
                     Pal::Gray,
                 ),
+                AfterTyping,
+                Visibility::Hidden,
                 scope.clone(),
             ));
         }
@@ -124,17 +161,27 @@ fn outcome_timeline(
             label(
                 format!(
                     "{:.0} MILES RUN.  STRUCK BY {} SEAS AND HAZARDS.",
-                    voyage.nm, voyage.hazard_hits
+                    voyage.run_nm, voyage.hazard_hits
                 ),
                 TEXT_X,
                 166.0,
                 Pal::Gray,
             ),
+            AfterTyping,
+            Visibility::Hidden,
             scope.clone(),
         ));
-        commands.spawn((centered("ENTER", 184.0, Pal::Amber, 1.0), scope));
+        commands.spawn((
+            centered("ENTER", 184.0, Pal::Amber, 1.0),
+            AfterTyping,
+            Visibility::Hidden,
+            scope,
+        ));
     }
-    if clock.0 >= TEXT_AFTER && keys.just_pressed(KeyCode::Enter) {
+    if before >= words_at
+        && keys.just_pressed(KeyCode::Enter)
+        && enter_may_advance(&typed, &mut finish)
+    {
         next.set(GameState::Memorial);
     }
 }
@@ -160,8 +207,8 @@ fn enter_memorial(mut commands: Commands, content: Res<Content>) {
         centered(text.memorial_title.clone(), 8.0, Pal::White, 2.0),
         scope.clone(),
     ));
-    for (line, y) in wrapped_lines(&text.memorial_body, COLUMNS, 30.0) {
-        commands.spawn((label(line, TEXT_X, y, Pal::Foam), scope.clone()));
+    for line in typed_lines(&text.memorial_body, COLUMNS, TEXT_X, 30.0, Pal::Foam) {
+        commands.spawn((line, scope.clone()));
     }
     let row_width = CREW as f32 * 8.0;
     let left = ((320.0 - row_width) / 2.0).floor();
@@ -179,7 +226,12 @@ fn enter_memorial(mut commands: Commands, content: Res<Content>) {
             scope.clone(),
         ));
     }
-    commands.spawn((centered("ENTER", 186.0, Pal::Gray, 1.0), scope));
+    commands.spawn((
+        centered("ENTER", 186.0, Pal::Gray, 1.0),
+        AfterTyping,
+        Visibility::Hidden,
+        scope,
+    ));
 }
 
 /// How many times the bell has rung, `seconds` after the memorial opened.
@@ -190,6 +242,8 @@ fn tolls_by(seconds: f32) -> u32 {
 fn ring_bell(
     time: Res<Time>,
     keys: Res<ButtonInput<KeyCode>>,
+    typed: Query<&Typed>,
+    mut finish: MessageWriter<FinishTyping>,
     mut tolling: ResMut<Tolling>,
     mut marks: Query<(&TollMark, &mut Sprite)>,
     mut sfx: MessageWriter<Sfx>,
@@ -206,7 +260,7 @@ fn ring_bell(
             }
         }
     }
-    if keys.just_pressed(KeyCode::Enter) {
+    if keys.just_pressed(KeyCode::Enter) && enter_may_advance(&typed, &mut finish) {
         next.set(GameState::Title);
     }
 }

@@ -1,5 +1,5 @@
 (
-    voyage_minutes_per_second: 6.0,
+    voyage_minutes_per_second: 4.0,
     fast_forward: 5.0,
     past_gate_clock_factor: 3.0,
     last_contact_gate: (10, 19, 20),

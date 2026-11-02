@@ -142,6 +142,18 @@ pub fn plan_section(
     (hazards, length)
 }
 
+/// Drawn height of a wave column: rough along its length, and falling away
+/// toward the gap so that the gap reads as a low place in the sea.
+pub fn crest_column_height(crest_h: f32, x: f32, seed: f32, gap_x: f32, gap_w: f32) -> f32 {
+    const TAPER: f32 = 22.0;
+    const STEP: f32 = 2.0;
+    let rough = 0.72 + 0.28 * (x * 0.13 + seed * 0.37).sin() * (x * 0.041 + seed * 0.11).cos();
+    let from_gap = ((x - gap_x).abs() - gap_w / 2.0).max(0.0);
+    let taper = (from_gap / TAPER).clamp(0.3, 1.0);
+    let height = crest_h * rough * taper;
+    ((height / STEP).round() * STEP).clamp(STEP, crest_h)
+}
+
 /// What the ship's body covers, for collision.
 fn ship_touches(ship_x: f32, hazard: &Hazard, y: f32) -> bool {
     let vertical = y + hazard.h >= SHIP_TOP && y <= SHIP_TOP + SHIP_H;
@@ -446,6 +458,15 @@ mod tests {
             let careful: usize = (0..10).map(|seed| play(id, seed, steer_for_gap)).sum();
             assert!(careful * 2 < idle, "{id}: careful {careful}, idle {idle}");
         }
+    }
+
+    #[test]
+    fn wave_columns_are_rough_stay_in_bounds_and_taper_at_the_gap() {
+        let height = |x: f32| crest_column_height(14.0, x, 300.0, 128.0, 60.0);
+        let heights: Vec<f32> = (0..43).map(|step| height(step as f32 * 6.0)).collect();
+        assert!(heights.iter().all(|h| (2.0..=14.0).contains(h)));
+        assert!(heights.iter().any(|h| *h != heights[0]), "a flat crest");
+        assert!(height(160.0) < height(190.0));
     }
 
     #[test]

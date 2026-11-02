@@ -98,6 +98,18 @@ pub fn remap_rgba(pixels: &mut [u8]) {
     }
 }
 
+/// Turn RGBA8 art into a white shape, to be tinted with one palette color.
+pub fn silhouette_rgba(pixels: &mut [u8]) {
+    let (chunks, _) = pixels.as_chunks_mut::<4>();
+    for pixel in chunks {
+        *pixel = if pixel[3] < 128 {
+            [0, 0, 0, 0]
+        } else {
+            [255, 255, 255, 255]
+        };
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -109,6 +121,13 @@ mod tests {
                 assert_ne!(a.rgb(), b.rgb());
             }
         }
+    }
+
+    #[test]
+    fn silhouette_keeps_only_the_shape() {
+        let mut pixels = [9, 9, 9, 0, 128, 24, 16, 255];
+        silhouette_rgba(&mut pixels);
+        assert_eq!(pixels, [0, 0, 0, 0, 255, 255, 255, 255]);
     }
 
     #[test]

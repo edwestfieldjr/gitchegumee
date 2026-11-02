@@ -48,6 +48,8 @@ pub struct Voyage {
     pub path: Vec<LatLon>,
     /// Nautical miles run along `path`.
     pub nm: f32,
+    /// Total miles run, which a change of route does not reset.
+    pub run_nm: f32,
     pub flags: BTreeSet<String>,
     /// While the clock is before this, the ship is sheltering.
     pub lee_until: f32,
@@ -67,6 +69,7 @@ impl Default for Voyage {
             route: RouteId::Standard,
             path: Vec::new(),
             nm: 0.0,
+            run_nm: 0.0,
             flags: BTreeSet::new(),
             lee_until: 0.0,
             past_gate: false,
@@ -140,7 +143,9 @@ impl Voyage {
         } else {
             (length - final_stretch_nm).max(0.0)
         };
+        let before = self.nm;
         self.nm = (self.nm + speed_kn * hours).min(limit);
+        self.run_nm += (self.nm - before).max(0.0);
     }
 
     /// Log any named waypoint the ship has just come up on.
@@ -523,6 +528,16 @@ mod tests {
         assert_eq!(voyage.route, RouteId::North);
         assert_eq!(voyage.nm, 0.0);
         assert_eq!(voyage.position(), here);
+    }
+
+    #[test]
+    fn miles_run_survive_a_change_of_route() {
+        let (content, mut voyage) = ready();
+        voyage.advance(10.0, 4.0, content.balance.final_stretch_nm);
+        voyage.apply_effect(&Effect::SetRoute(RouteId::North), &content.chart);
+        voyage.advance(10.0, 1.0, content.balance.final_stretch_nm);
+        assert_eq!(voyage.nm, 10.0);
+        assert_eq!(voyage.run_nm, 50.0);
     }
 
     #[test]

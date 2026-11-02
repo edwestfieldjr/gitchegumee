@@ -15,7 +15,7 @@ use crate::states::GameState;
 
 const SHOT_DELAY: f32 = 1.2;
 /// Real seconds to stay on the outcome screen, so its text can be captured.
-const SECONDS_AT_OUTCOME: f32 = 5.0;
+const SECONDS_AT_OUTCOME: f32 = 14.0;
 /// Seconds to wait for shaders to compile before autoplay starts.
 const AUTOPLAY_WARMUP: f32 = 14.0;
 const PRESS_EVERY: f32 = 0.4;
@@ -65,7 +65,7 @@ fn state_shots(
     mut since: Local<f32>,
     mut pending: Local<bool>,
     mut count: Local<u32>,
-    mut outcome_text_shot: Local<bool>,
+    mut outcome_shots: Local<u32>,
 ) {
     if *shown != Some(*state.get()) {
         *shown = Some(*state.get());
@@ -73,11 +73,10 @@ fn state_shots(
         *pending = true;
         info!("state: {:?}", state.get());
     }
-    let late_outcome = *state.get() == GameState::Outcome
-        && !*outcome_text_shot
-        && time.elapsed_secs() >= *since + SECONDS_AT_OUTCOME - 1.0;
-    if late_outcome {
-        *outcome_text_shot = true;
+    // The outcome screen is a timed sequence, so capture it repeatedly.
+    let elapsed = time.elapsed_secs() - *since;
+    if *state.get() == GameState::Outcome && elapsed >= *outcome_shots as f32 + 1.0 {
+        *outcome_shots += 1;
         *pending = true;
     }
     if *pending && time.elapsed_secs() >= *since + SHOT_DELAY {

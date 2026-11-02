@@ -283,6 +283,8 @@ pub struct Balance {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Texts {
+    pub closing_gone: String,
+    pub closing_position: String,
     pub lost_title: String,
     pub lost_body: String,
     pub reached_title: String,

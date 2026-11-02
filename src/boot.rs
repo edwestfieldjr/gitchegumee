@@ -6,18 +6,21 @@ use bevy::prelude::*;
 use crate::content::{Content, ContentFiles, RonText, start_content_load};
 use crate::states::GameState;
 use crate::ui::centered;
-use crate::ui::palette::{Pal, remap_rgba};
+use crate::ui::palette::{Pal, remap_rgba, silhouette_rgba};
 
 #[derive(Resource, Clone)]
 pub struct Sprites {
     pub side: Handle<Image>,
     pub topdown: Handle<Image>,
+    /// A white shape of the side view, tinted with one palette color.
+    pub silhouette: Handle<Image>,
 }
 
 fn start_loading(mut commands: Commands, server: Res<AssetServer>) {
     commands.insert_resource(Sprites {
         side: server.load("sprites/freighter/freighter_side.png"),
         topdown: server.load("sprites/freighter/freighter_topdown_sheet.png"),
+        silhouette: Handle::default(),
     });
     commands.spawn((
         centered("LOADING", 96.0, Pal::Gray, 1.0),
@@ -28,7 +31,7 @@ fn start_loading(mut commands: Commands, server: Res<AssetServer>) {
 fn finish_loading(
     mut commands: Commands,
     server: Res<AssetServer>,
-    sprites: Res<Sprites>,
+    mut sprites: ResMut<Sprites>,
     files: Res<ContentFiles>,
     texts: Res<Assets<RonText>>,
     mut images: ResMut<Assets<Image>>,
@@ -38,7 +41,7 @@ fn finish_loading(
     if *failed {
         return;
     }
-    let handles = [&sprites.side, &sprites.topdown];
+    let handles = [sprites.side.clone(), sprites.topdown.clone()];
     if !handles
         .iter()
         .all(|handle| matches!(server.load_state(handle.id()), LoadState::Loaded))
@@ -67,12 +70,22 @@ fn finish_loading(
             return;
         }
     }
-    for handle in handles {
+    for handle in &handles {
         if let Some(mut image) = images.get_mut(handle)
             && let Some(data) = image.data.as_mut()
         {
             remap_rgba(data);
         }
+    }
+    let shape = images.get(&sprites.side).map(|side| {
+        let mut shape = side.clone();
+        if let Some(data) = shape.data.as_mut() {
+            silhouette_rgba(data);
+        }
+        shape
+    });
+    if let Some(shape) = shape {
+        sprites.silhouette = images.add(shape);
     }
     next.set(GameState::Title);
 }

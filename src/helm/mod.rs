@@ -15,9 +15,14 @@ use crate::ui::palette::Pal;
 use crate::ui::{Bar, Label, at, bar_parts, label, rect, z};
 use crate::voyage::{ClockRate, Voyage};
 use crate::weather::Weather;
-use sim::{FIELD_W, HazardKind, HelmSim, SHIP_H, SHIP_TOP, hit_damage, plan_section};
+use sim::{
+    FIELD_W, HazardKind, HelmSim, SHIP_H, SHIP_TOP, crest_column_height, hit_damage, plan_section,
+};
 
 const FRAME: f32 = 80.0;
+/// Width of one column of a drawn wave, and the depth of its whitecap.
+const CREST_COLUMN: f32 = 6.0;
+const CREST_CAP: f32 = 2.0;
 /// Sheet columns of the frames used, in the order N NE E SE S SW W NW.
 const FRAME_N: usize = 0;
 const FRAME_NE: usize = 1;
@@ -34,7 +39,7 @@ const FLAKES: usize = 50;
 /// Pixels ahead of the bow that can be seen at zero visibility and at full.
 const SEE_NEAR: f32 = 50.0;
 const SEE_FAR: f32 = 220.0;
-const BANNER_SECONDS: f32 = 2.5;
+const BANNER_SECONDS: f32 = 3.5;
 const FLASH_SECONDS: f32 = 0.5;
 const BASE_RUDDER_RATE: f32 = 4.0;
 const FATIGUE_RUDDER_LOSS: f32 = 1.0 / 160.0;
@@ -61,6 +66,9 @@ struct HelmInput(f32);
 #[derive(Component)]
 struct HazardPart {
     index: usize,
+    /// Pixels below the hazard's top edge.
+    drop: f32,
+    height: f32,
 }
 
 #[derive(Component)]
@@ -356,30 +364,49 @@ fn spawn_hazards(mut commands: Commands, mut run: ResMut<HelmRun>) {
         run.spawned += 1;
         let scope = DespawnOnExit(GameState::Helm);
         let order = z::FIELD + 1.0;
-        let mut piece = |x: f32, w: f32, color: Pal| {
-            if w > 0.0 {
-                commands.spawn((
-                    rect(x.floor(), 0.0, w.floor(), hazard.h.floor(), color, order),
-                    HazardPart { index },
-                    Visibility::Hidden,
-                    scope.clone(),
-                ));
-            }
+        let mut piece = |x: f32, drop: f32, w: f32, h: f32, color: Pal, order: f32| {
+            commands.spawn((
+                rect(x.floor(), 0.0, w.floor(), h.floor(), color, order),
+                HazardPart {
+                    index,
+                    drop,
+                    height: h.floor(),
+                },
+                Visibility::Hidden,
+                scope.clone(),
+            ));
         };
         match hazard.kind {
             HazardKind::Wave { gap_x, gap_w } | HazardKind::Rogue { gap_x, gap_w, .. } => {
-                let color = if matches!(hazard.kind, HazardKind::Rogue { .. }) {
-                    Pal::White
+                let rogue = matches!(hazard.kind, HazardKind::Rogue { .. });
+                let (body, cap) = if rogue {
+                    (Pal::Foam, Pal::White)
                 } else {
-                    Pal::Foam
+                    (Pal::Sky, Pal::Foam)
                 };
-                let left = (gap_x - gap_w / 2.0).max(0.0);
-                let right = gap_x + gap_w / 2.0;
-                piece(0.0, left, color);
-                piece(right, FIELD_W - right, color);
+                let (left, right) = (gap_x - gap_w / 2.0, gap_x + gap_w / 2.0);
+                let mut x = 0.0;
+                while x < FIELD_W {
+                    let middle = x + CREST_COLUMN / 2.0;
+                    if middle < left || middle > right {
+                        let height = crest_column_height(hazard.h, middle, hazard.at, gap_x, gap_w);
+                        let drop = hazard.h - height;
+                        piece(x, drop, CREST_COLUMN, height, body, order);
+                        piece(
+                            x,
+                            drop,
+                            CREST_COLUMN,
+                            CREST_CAP.min(height),
+                            cap,
+                            order + 0.5,
+                        );
+                    }
+                    x += CREST_COLUMN;
+                }
             }
-            HazardKind::Debris => piece(hazard.x, hazard.w, Pal::Sand),
-            HazardKind::Shoal => piece(hazard.x, hazard.w, Pal::Sand),
+            HazardKind::Debris | HazardKind::Shoal => {
+                piece(hazard.x, 0.0, hazard.w, hazard.h, Pal::Sand, order);
+            }
         }
     }
 }
@@ -404,7 +431,7 @@ fn draw_field(
         } else {
             Visibility::Hidden
         };
-        transform.translation.y = 100.0 - y - hazard.h.floor() / 2.0;
+        transform.translation.y = 100.0 - y - part.drop - part.height / 2.0;
     }
     for (mut sprite, mut transform) in &mut player {
         let column = if run.sim.rudder > TURN_FRAME_AT {

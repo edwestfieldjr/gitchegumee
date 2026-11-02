@@ -2,18 +2,24 @@
 
 pub mod font;
 pub mod palette;
+pub mod typing;
+pub mod wipe;
 
+use bevy::app::MainScheduleOrder;
 use bevy::camera::RenderTarget;
 use bevy::camera::visibility::RenderLayers;
+use bevy::ecs::schedule::ScheduleLabel;
 use bevy::prelude::*;
 use bevy::render::render_resource::TextureFormat;
 use bevy::window::{PrimaryWindow, WindowResized};
 
-use font::{CELL_H, CELL_W, FontImage, build_font_image, glyph_rect, wrap};
+use font::{CELL_H, CELL_W, FontImage, build_font_image, glyph_rect};
 use palette::Pal;
 
 pub const VIEW_W: u32 = 320;
 pub const VIEW_H: u32 = 200;
+/// Pixels from one line of text to the next.
+pub const CELL_LINE: f32 = CELL_H;
 const DISPLAY_LAYER: usize = 1;
 
 /// Z bands, so draw order is decided in one place.
@@ -86,15 +92,6 @@ pub fn centered(text: impl Into<String>, y: f32, color: Pal, scale: f32) -> impl
     let width = text.len() as f32 * CELL_W * scale;
     let x = ((VIEW_W as f32 - width) / 2.0).floor();
     (Label::new(text, color).scaled(scale), at(x, y, z::TEXT))
-}
-
-/// Lay out wrapped text and return the lines with their y positions.
-pub fn wrapped_lines(text: &str, columns: usize, y: f32) -> Vec<(String, f32)> {
-    wrap(text, columns)
-        .into_iter()
-        .enumerate()
-        .map(|(index, line)| (line, y + index as f32 * CELL_H))
-        .collect()
 }
 
 /// A boxed panel, drawn as a 2px frame around a dark interior.
@@ -197,6 +194,13 @@ pub fn bar_parts(bar: Bar, fill: Pal, back: Pal) -> (impl Bundle, impl Bundle) {
     )
 }
 
+/// Runs after every `Update` command has been applied and before `PostUpdate`.
+/// Labels despawn and respawn their glyphs. Before this point a label might be
+/// removed later in the same frame, and in `PostUpdate` Bevy inserts a mesh on
+/// each newly added sprite, which could target a glyph just removed.
+#[derive(ScheduleLabel, Debug, Clone, PartialEq, Eq, Hash)]
+struct DrawLabels;
+
 #[derive(Component)]
 struct ViewQuad;
 
@@ -263,12 +267,14 @@ impl Plugin for UiPlugin {
             let mut images = app.world_mut().resource_mut::<Assets<Image>>();
             images.add(build_font_image())
         };
+        app.world_mut()
+            .resource_mut::<MainScheduleOrder>()
+            .insert_after(Update, DrawLabels);
+        app.add_plugins((typing::TypingPlugin, wipe::WipePlugin));
         app.insert_resource(FontImage(font))
             .add_systems(Startup, setup_view)
-            // Labels despawn and respawn their glyphs. This has to finish before
-            // PostUpdate, where Bevy inserts a mesh on every newly added sprite
-            // and would otherwise target a glyph that was just removed.
-            .add_systems(Update, (fit_view, draw_labels))
+            .add_systems(Update, fit_view)
+            .add_systems(DrawLabels, draw_labels)
             .add_systems(PostUpdate, draw_bars);
     }
 }

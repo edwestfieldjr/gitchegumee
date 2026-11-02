@@ -7,7 +7,8 @@ use crate::audio::Sfx;
 use crate::content::{Content, PANEL_COLUMNS, clock_text};
 use crate::states::{EventPhase, GameState};
 use crate::ui::palette::Pal;
-use crate::ui::{Label, label, panel_parts, rect, wrapped_lines, z};
+use crate::ui::typing::{AfterTyping, FinishTyping, Typed, enter_may_advance, typed_lines};
+use crate::ui::{Label, label, panel_parts, rect, z};
 use crate::voyage::Voyage;
 
 const PANEL_X: f32 = 4.0;
@@ -52,8 +53,8 @@ fn enter_choosing(
     let clock = clock_text(voyage.minute);
     let clock_x = PANEL_X + PANEL_W - 10.0 - clock.len() as f32 * 6.0;
     commands.spawn((label(clock, clock_x, 12.0, Pal::Gray), scope.clone()));
-    for (line, y) in wrapped_lines(&event.body, PANEL_COLUMNS, 28.0) {
-        commands.spawn((label(line, TEXT_X, y, Pal::White), scope.clone()));
+    for line in typed_lines(&event.body, PANEL_COLUMNS, TEXT_X, 28.0, Pal::White) {
+        commands.spawn((line, scope.clone()));
     }
     for (index, choice) in event.choices.iter().enumerate() {
         commands.spawn((
@@ -64,6 +65,8 @@ fn enter_choosing(
                 Pal::Foam,
             ),
             ChoiceRow(index),
+            AfterTyping,
+            Visibility::Hidden,
             scope.clone(),
         ));
     }
@@ -72,13 +75,20 @@ fn enter_choosing(
     } else {
         "UP/DOWN: CHOOSE   ENTER: GIVE THE ORDER"
     };
-    commands.spawn((label(hint, TEXT_X, HINT_Y, Pal::Gray), scope));
+    commands.spawn((
+        label(hint, TEXT_X, HINT_Y, Pal::Gray),
+        AfterTyping,
+        Visibility::Hidden,
+        scope,
+    ));
 }
 
 fn choosing_input(
     keys: Res<ButtonInput<KeyCode>>,
     active: Res<ActiveEvent>,
     content: Res<Content>,
+    typed: Query<&Typed>,
+    mut finish: MessageWriter<FinishTyping>,
     mut selection: ResMut<Selection>,
     mut effects: MessageWriter<ApplyEffect>,
     mut sfx: MessageWriter<Sfx>,
@@ -97,7 +107,7 @@ fn choosing_input(
             sfx.write(Sfx::Select);
         }
     }
-    if !keys.just_pressed(KeyCode::Enter) {
+    if !keys.just_pressed(KeyCode::Enter) || !enter_may_advance(&typed, &mut finish) {
         return;
     }
     sfx.write(Sfx::Select);
@@ -144,19 +154,26 @@ fn enter_result(
         scope.clone(),
     ));
     if let Some(choice) = selection.picked.and_then(|index| event.choices.get(index)) {
-        for (line, y) in wrapped_lines(&choice.result, PANEL_COLUMNS, 28.0) {
-            commands.spawn((label(line, TEXT_X, y, Pal::White), scope.clone()));
+        for line in typed_lines(&choice.result, PANEL_COLUMNS, TEXT_X, 28.0, Pal::White) {
+            commands.spawn((line, scope.clone()));
         }
     }
-    commands.spawn((label("ENTER: CONTINUE", TEXT_X, HINT_Y, Pal::Gray), scope));
+    commands.spawn((
+        label("ENTER: CONTINUE", TEXT_X, HINT_Y, Pal::Gray),
+        AfterTyping,
+        Visibility::Hidden,
+        scope,
+    ));
 }
 
 fn result_input(
     keys: Res<ButtonInput<KeyCode>>,
+    typed: Query<&Typed>,
+    mut finish: MessageWriter<FinishTyping>,
     mut sfx: MessageWriter<Sfx>,
     mut game: ResMut<NextState<GameState>>,
 ) {
-    if keys.just_pressed(KeyCode::Enter) {
+    if keys.just_pressed(KeyCode::Enter) && enter_may_advance(&typed, &mut finish) {
         sfx.write(Sfx::Select);
         game.set(GameState::Voyage);
     }
