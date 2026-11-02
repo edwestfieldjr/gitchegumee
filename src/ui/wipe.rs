@@ -8,7 +8,7 @@ use crate::states::GameState;
 
 const BLIND_H: f32 = 8.0;
 /// Game seconds the screen stays covered, then game seconds the blinds take to
-/// open. At a `pace` of 0.25 that is 0.2 and then 0.8 real seconds.
+/// open. At a `pace` of 0.4375 that is about 0.1 and then 0.45 real seconds.
 const HOLD: f32 = 0.05;
 const OPEN: f32 = 0.2;
 const WIPE_Z: f32 = 90.0;

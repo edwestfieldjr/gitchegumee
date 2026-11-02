@@ -53,7 +53,7 @@ survival ending and the memorial's bell share one Detroit scene, drawn in
 ## Tuning
 
 Everything tunable is in `assets/data/balance.ron`. `pace` is the master game
-speed: `0.25` is quarter speed. `helm_pace` replaces it during a race. Helm densities and timing are in `helm.ron`.
+speed: `0.5` would be half speed. `helm_pace` replaces it during a race. Helm densities and timing are in `helm.ron`.
 
 Whole voyages are played without a window in `src/voyage/balance_tests.rs`.
 

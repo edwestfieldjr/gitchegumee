@@ -10,7 +10,7 @@ use super::font::wrap;
 use super::palette::Pal;
 use super::{CELL_LINE, Label, at, z};
 
-/// In game time, so at a `pace` of 0.25 this is 10 characters a real second.
+/// In game time, so at a `pace` of 0.4375 this is 17.5 characters a real second.
 const CHARS_PER_SECOND: f32 = 40.0;
 /// Real seconds after text finishes before a press can move on.
 const HOLD_SECONDS: f32 = 0.5;
