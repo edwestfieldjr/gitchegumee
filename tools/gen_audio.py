@@ -179,6 +179,18 @@ def bell():
     return buf
 
 
+def horn():
+    """A ship's horn: two low, slightly detuned tones, one long blast."""
+    seconds = 3.5
+    buf = empty(seconds)
+    for hz, level in [(82.4, 0.5), (123.5, 0.3), (165.0, 0.15)]:
+        for i in range(len(buf)):
+            t = i / RATE
+            env = min(1.0, t / 0.15) * min(1.0, (seconds - t) / 0.4)
+            buf[i] += square(t * hz, 0.4) * level * env
+    return buf
+
+
 def main():
     out = Path(sys.argv[1])
     out.mkdir(parents=True, exist_ok=True)
@@ -192,6 +204,7 @@ def main():
     save(out / "sfx_shoal.wav", noise_hit(0.7, 1.0, 14, 3))
     save(out / "sfx_rogue.wav", noise_hit(1.2, 1.0, 10, 4))
     save(out / "sfx_bell.wav", bell())
+    save(out / "sfx_horn.wav", horn())
 
 
 if __name__ == "__main__":

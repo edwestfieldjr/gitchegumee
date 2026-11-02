@@ -41,7 +41,7 @@ fn spawn_blinds(mut commands: Commands) {
 }
 
 fn run_wipe(
-    time: Res<Time<Real>>,
+    time: Res<Time>,
     state: Res<State<GameState>>,
     mut clock: Local<f32>,
     mut blinds: Query<(&Blind, &mut Transform, &mut Visibility)>,

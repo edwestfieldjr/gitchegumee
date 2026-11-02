@@ -16,7 +16,8 @@ use crate::ui::{Bar, Label, at, bar_parts, label, rect, z};
 use crate::voyage::{ClockRate, Voyage};
 use crate::weather::Weather;
 use sim::{
-    FIELD_W, HazardKind, HelmSim, SHIP_H, SHIP_TOP, crest_column_height, hit_damage, plan_section,
+    FIELD_W, HazardKind, HelmSim, SHIP_H, SHIP_TOP, crest_column_height, crest_sway, hit_damage,
+    plan_section,
 };
 
 const FRAME: f32 = 80.0;
@@ -69,6 +70,10 @@ struct HazardPart {
     /// Pixels below the hazard's top edge.
     drop: f32,
     height: f32,
+    x: f32,
+    w: f32,
+    /// A crest piece, which heaves and sways. Debris and shoals hold still.
+    crest: bool,
 }
 
 #[derive(Component)]
@@ -364,6 +369,10 @@ fn spawn_hazards(mut commands: Commands, mut run: ResMut<HelmRun>) {
         run.spawned += 1;
         let scope = DespawnOnExit(GameState::Helm);
         let order = z::FIELD + 1.0;
+        let crest = matches!(
+            hazard.kind,
+            HazardKind::Wave { .. } | HazardKind::Rogue { .. }
+        );
         let mut piece = |x: f32, drop: f32, w: f32, h: f32, color: Pal, order: f32| {
             commands.spawn((
                 rect(x.floor(), 0.0, w.floor(), h.floor(), color, order),
@@ -371,6 +380,9 @@ fn spawn_hazards(mut commands: Commands, mut run: ResMut<HelmRun>) {
                     index,
                     drop,
                     height: h.floor(),
+                    x: x.floor(),
+                    w: w.floor(),
+                    crest,
                 },
                 Visibility::Hidden,
                 scope.clone(),
@@ -385,8 +397,9 @@ fn spawn_hazards(mut commands: Commands, mut run: ResMut<HelmRun>) {
                     (Pal::Sky, Pal::Foam)
                 };
                 let (left, right) = (gap_x - gap_w / 2.0, gap_x + gap_w / 2.0);
-                let mut x = 0.0;
-                while x < FIELD_W {
+                // Columns run past both edges, so a sway never bares the edge.
+                let mut x = -CREST_COLUMN * 2.0;
+                while x < FIELD_W + CREST_COLUMN {
                     let middle = x + CREST_COLUMN / 2.0;
                     if middle < left || middle > right {
                         let height = crest_column_height(hazard.h, middle, hazard.at, gap_x, gap_w);
@@ -411,6 +424,12 @@ fn spawn_hazards(mut commands: Commands, mut run: ResMut<HelmRun>) {
     }
 }
 
+/// Whole pixels a crest column has risen, so that the breakers work as they
+/// come. This is only for looks: collision uses the crest's fixed height.
+fn crest_heave(x: f32, seconds: f32) -> f32 {
+    ((x * 0.09 + seconds * 2.6).sin() * 1.6).round()
+}
+
 fn draw_field(
     time: Res<Time>,
     run: Res<HelmRun>,
@@ -421,6 +440,7 @@ fn draw_field(
     mut specks: Query<(&mut Speck, &mut Transform), (Without<HazardPart>, Without<PlayerShip>)>,
 ) {
     let seen = SEE_NEAR + (SEE_FAR - SEE_NEAR) * weather.visibility;
+    let elapsed = time.elapsed_secs();
     for (part, mut transform, mut visibility) in &mut parts {
         let hazard = &run.sim.hazards[part.index];
         let y = run.sim.hazard_y(hazard).round();
@@ -431,7 +451,16 @@ fn draw_field(
         } else {
             Visibility::Hidden
         };
-        transform.translation.y = 100.0 - y - part.drop - part.height / 2.0;
+        let (sway, heave) = if part.crest {
+            (
+                crest_sway(hazard.at, run.sim.progress).round(),
+                crest_heave(part.x, elapsed),
+            )
+        } else {
+            (0.0, 0.0)
+        };
+        transform.translation.x = part.x + part.w / 2.0 + sway - 160.0;
+        transform.translation.y = 100.0 - y - part.drop - part.height / 2.0 + heave;
     }
     for (mut sprite, mut transform) in &mut player {
         let column = if run.sim.rudder > TURN_FRAME_AT {
@@ -672,6 +701,15 @@ impl Plugin for HelmPlugin {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn breakers_heave_a_little_and_in_whole_pixels() {
+        let heaves: Vec<f32> = (0..100)
+            .map(|step| crest_heave(40.0, step as f32 * 0.1))
+            .collect();
+        assert!(heaves.iter().all(|h| h.fract() == 0.0 && h.abs() <= 2.0));
+        assert!(heaves.iter().any(|h| *h != heaves[0]));
+    }
 
     #[test]
     fn the_guide_calls_toward_the_gap() {

@@ -9,7 +9,8 @@ use super::font::wrap;
 use super::palette::Pal;
 use super::{CELL_LINE, Label, at, z};
 
-const CHARS_PER_SECOND: f32 = 28.0;
+/// In game time, so at half pace this is 20 characters a real second.
+const CHARS_PER_SECOND: f32 = 40.0;
 /// Pause at the end of each line, counted in characters.
 const LINE_PAUSE_CHARS: usize = 6;
 

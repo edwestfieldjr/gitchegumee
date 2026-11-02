@@ -36,6 +36,7 @@ fn finish_loading(
     texts: Res<Assets<RonText>>,
     mut images: ResMut<Assets<Image>>,
     mut next: ResMut<NextState<GameState>>,
+    mut time: ResMut<Time<Virtual>>,
     mut failed: Local<bool>,
 ) {
     if *failed {
@@ -57,7 +58,10 @@ fn finish_loading(
         return;
     };
     match Content::parse(sources) {
-        Ok(content) => commands.insert_resource(content),
+        Ok(content) => {
+            time.set_relative_speed(content.balance.pace);
+            commands.insert_resource(content);
+        }
         Err(errors) => {
             *failed = true;
             for error in &errors {

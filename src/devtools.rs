@@ -6,16 +6,21 @@
 //! - `DOWNBOUND_SHOT_DIR=<dir>` saves one soon after each state change.
 //! - `DOWNBOUND_AUTOPLAY=careful|careless` plays a whole run and exits after
 //!   the memorial. `DOWNBOUND_SPEED=<n>` runs game time faster.
+//! - `DOWNBOUND_JUMP=lost|reached`, with autoplay, goes straight to an ending.
 
 use bevy::input::InputSystems;
 use bevy::prelude::*;
 use bevy::render::view::screenshot::{Screenshot, save_to_disk};
 
+use crate::content::{At, Content};
+use crate::events::ActiveEvent;
 use crate::states::GameState;
+use crate::voyage::Ending;
+use crate::voyage::route::LatLon;
 
 const SHOT_DELAY: f32 = 1.2;
 /// Real seconds to stay on the outcome screen, so its text can be captured.
-const SECONDS_AT_OUTCOME: f32 = 14.0;
+const SECONDS_AT_OUTCOME: f32 = 26.0;
 /// Seconds to wait for shaders to compile before autoplay starts.
 const AUTOPLAY_WARMUP: f32 = 14.0;
 const PRESS_EVERY: f32 = 0.4;
@@ -98,6 +103,7 @@ struct Autoplay {
     port_step: usize,
     memorial_since: Option<f32>,
     outcome_since: Option<f32>,
+    ran_all_pumps: bool,
 }
 
 /// Press keys through the normal input resource, so the game's own input
@@ -107,6 +113,10 @@ fn autoplay(
     state: Res<State<GameState>>,
     mut keys: ResMut<ButtonInput<KeyCode>>,
     mut exit: MessageWriter<AppExit>,
+    mut commands: Commands,
+    mut next: ResMut<NextState<GameState>>,
+    active: Option<Res<ActiveEvent>>,
+    content: Option<Res<Content>>,
     mut play: Local<Autoplay>,
 ) {
     let Ok(mode) = std::env::var("DOWNBOUND_AUTOPLAY") else {
@@ -128,8 +138,35 @@ fn autoplay(
     if now - play.last_press < PRESS_EVERY {
         return;
     }
+    let jump = std::env::var("DOWNBOUND_JUMP").ok();
+    if *state.get() == GameState::Title
+        && let Some(jump) = jump.as_deref()
+    {
+        commands.insert_resource(Ending {
+            reached_bay: jump == "reached",
+            minute: At(10, 19, 20).minute(),
+            position: LatLon {
+                lat: 47.0,
+                lon: -85.1,
+            },
+        });
+        next.set(GameState::Outcome);
+        return;
+    }
     let key = match state.get() {
         GameState::Boot => return,
+        // The careful answer to the damage report is every pump, the second choice.
+        GameState::Event
+            if careful
+                && !play.ran_all_pumps
+                && active
+                    .as_ref()
+                    .zip(content.as_ref())
+                    .is_some_and(|(active, content)| content.events[active.0].id == "topside") =>
+        {
+            play.ran_all_pumps = true;
+            KeyCode::ArrowDown
+        }
         GameState::Port if careful => {
             // All clamps, north-shore route, then sail.
             const STEPS: [KeyCode; 6] = [
@@ -173,12 +210,16 @@ fn autoplay(
     play.last_press = now;
 }
 
-fn set_speed(mut time: ResMut<Time<Virtual>>) {
+fn set_speed(mut time: ResMut<Time<Virtual>>, mut done: Local<bool>) {
+    if std::mem::replace(&mut *done, true) {
+        return;
+    }
     if let Some(speed) = std::env::var("DOWNBOUND_SPEED")
         .ok()
-        .and_then(|value| value.parse().ok())
+        .and_then(|value| value.parse::<f32>().ok())
     {
-        time.set_relative_speed(speed);
+        let pace = time.relative_speed();
+        time.set_relative_speed(pace * speed);
         time.set_max_delta(std::time::Duration::from_millis(500));
     }
 }
@@ -187,7 +228,7 @@ pub struct DevToolsPlugin;
 
 impl Plugin for DevToolsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, set_speed)
+        app.add_systems(OnEnter(GameState::Title), set_speed)
             .add_systems(PreUpdate, autoplay.after(InputSystems))
             .add_systems(Update, (timed_shot, key_shot, state_shots));
     }

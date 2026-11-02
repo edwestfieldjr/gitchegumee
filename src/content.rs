@@ -265,6 +265,8 @@ pub struct Survival {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Balance {
+    /// Master game speed, applied to the whole game clock.
+    pub pace: f32,
     pub voyage_minutes_per_second: f32,
     pub fast_forward: f32,
     /// Clock speed-up after the last contact, on the counterfactual path.
@@ -287,6 +289,7 @@ pub struct Texts {
     pub closing_position: String,
     pub lost_title: String,
     pub lost_body: String,
+    pub arrival_caption: String,
     pub reached_title: String,
     pub reached_body: String,
     pub memorial_title: String,
@@ -416,6 +419,9 @@ impl Content {
         let balance = &self.balance;
         if balance.clamp_levels.is_empty() {
             errors.push("balance: no clamp levels".to_string());
+        }
+        if balance.pace <= 0.0 {
+            errors.push("balance: pace must be above zero".to_string());
         }
         if balance.voyage_minutes_per_second <= 0.0 {
             errors.push("balance: the voyage clock must run forward".to_string());

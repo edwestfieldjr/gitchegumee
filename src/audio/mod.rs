@@ -21,6 +21,7 @@ pub enum Sfx {
     Shoal,
     Rogue,
     Bell,
+    Horn,
 }
 
 impl Sfx {
@@ -33,6 +34,7 @@ impl Sfx {
             Sfx::Shoal => "audio/sfx_shoal.ogg",
             Sfx::Rogue => "audio/sfx_rogue.ogg",
             Sfx::Bell => "audio/sfx_bell.ogg",
+            Sfx::Horn => "audio/sfx_horn.ogg",
         }
     }
 }

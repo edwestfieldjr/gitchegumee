@@ -1,4 +1,6 @@
 (
+    // Master game speed. 1.0 is the speed the numbers below are written for.
+    pace: 0.5,
     voyage_minutes_per_second: 4.0,
     fast_forward: 5.0,
     past_gate_clock_factor: 3.0,

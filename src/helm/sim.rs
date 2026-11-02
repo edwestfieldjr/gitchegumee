@@ -21,10 +21,20 @@ const DRIFT_RATE: f32 = 0.8;
 /// How far a gap may move per pixel of scroll between waves, so the next gap
 /// can always be reached from the last.
 const GAP_REACH: f32 = 0.55;
+/// Each gap's narrowest width range, and how many times wider it may be drawn.
+const GAP_MIN: f32 = 56.0;
+const GAP_MAX: f32 = 84.0;
+const GAP_WIDEST_FACTOR: f32 = 1.75;
+/// How far a crest sways from side to side, in pixels. The gap sways with it,
+/// and collision follows, so what is on screen is what can be hit.
+pub const CREST_SWAY: f32 = 5.0;
+const CREST_SWAY_RATE: f32 = 0.022;
 /// The three-wave set at the end of the last stretch: heights and gap widths.
 const ROGUE_SET: [(f32, f32); 3] = [(10.0, 80.0), (14.0, 60.0), (18.0, 44.0)];
 const ROGUE_SPACING: f32 = 240.0;
 const ROGUE_SET_AT: f32 = 0.6;
+/// Keeps the widest rogue gap wholly on the field as it sways.
+const GAP_EDGE_ROOM: f32 = 76.0;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum HazardKind {
@@ -54,7 +64,7 @@ pub struct Hazard {
 }
 
 fn wave_gap(rng: &mut GameRng, last_gap: f32, spacing: f32) -> (f32, f32) {
-    let gap_w = rng.range(56.0, 84.0);
+    let gap_w = rng.range(GAP_MIN, GAP_MAX) * rng.range(1.0, GAP_WIDEST_FACTOR);
     let reach = spacing * GAP_REACH;
     let low = (last_gap - reach).max(SHIP_MARGIN + gap_w / 2.0);
     let high = (last_gap + reach).min(FIELD_W - SHIP_MARGIN - gap_w / 2.0);
@@ -130,8 +140,8 @@ pub fn plan_section(
                 w: FIELD_W,
                 h: height,
                 kind: HazardKind::Rogue {
-                    gap_x: rng.range(70.0, FIELD_W - 70.0),
-                    gap_w,
+                    gap_x: rng.range(GAP_EDGE_ROOM, FIELD_W - GAP_EDGE_ROOM),
+                    gap_w: gap_w * rng.range(1.0, GAP_WIDEST_FACTOR),
                     scale,
                 },
             });
@@ -154,8 +164,13 @@ pub fn crest_column_height(crest_h: f32, x: f32, seed: f32, gap_x: f32, gap_w: f
     ((height / STEP).round() * STEP).clamp(STEP, crest_h)
 }
 
+/// How far a crest has swayed from its home at this point in the scroll.
+pub fn crest_sway(hazard_at: f32, progress: f32) -> f32 {
+    (progress * CREST_SWAY_RATE + hazard_at * 0.7).sin() * CREST_SWAY
+}
+
 /// What the ship's body covers, for collision.
-fn ship_touches(ship_x: f32, hazard: &Hazard, y: f32) -> bool {
+fn ship_touches(ship_x: f32, hazard: &Hazard, y: f32, progress: f32) -> bool {
     let vertical = y + hazard.h >= SHIP_TOP && y <= SHIP_TOP + SHIP_H;
     if !vertical {
         return false;
@@ -163,7 +178,8 @@ fn ship_touches(ship_x: f32, hazard: &Hazard, y: f32) -> bool {
     let (left, right) = (ship_x - SHIP_W / 2.0, ship_x + SHIP_W / 2.0);
     match hazard.kind {
         HazardKind::Wave { gap_x, gap_w } | HazardKind::Rogue { gap_x, gap_w, .. } => {
-            left < gap_x - gap_w / 2.0 || right > gap_x + gap_w / 2.0
+            let center = gap_x + crest_sway(hazard.at, progress);
+            left < center - gap_w / 2.0 || right > center + gap_w / 2.0
         }
         HazardKind::Debris | HazardKind::Shoal => right > hazard.x && left < hazard.x + hazard.w,
     }
@@ -289,7 +305,7 @@ impl HelmSim {
                 continue;
             }
             let hazard = self.hazards[index];
-            if ship_touches(self.ship_x, &hazard, self.hazard_y(&hazard)) {
+            if ship_touches(self.ship_x, &hazard, self.hazard_y(&hazard), self.progress) {
                 self.struck[index] = true;
                 hits.push(hazard.kind);
             }
@@ -394,8 +410,8 @@ mod tests {
                     | HazardKind::Rogue { gap_x, gap_w, .. } = hazard.kind
                     {
                         assert!(gap_w > SHIP_W);
-                        assert!(gap_x - gap_w / 2.0 >= 0.0);
-                        assert!(gap_x + gap_w / 2.0 <= FIELD_W);
+                        assert!(gap_x - gap_w / 2.0 >= -CREST_SWAY);
+                        assert!(gap_x + gap_w / 2.0 <= FIELD_W + CREST_SWAY);
                     }
                 }
             }
@@ -467,6 +483,43 @@ mod tests {
         assert!(heights.iter().all(|h| (2.0..=14.0).contains(h)));
         assert!(heights.iter().any(|h| *h != heights[0]), "a flat crest");
         assert!(height(160.0) < height(190.0));
+    }
+
+    #[test]
+    fn gaps_vary_from_the_old_width_up_to_seventy_five_percent_wider() {
+        let mut widths = Vec::new();
+        for seed in 0..40 {
+            let (hazards, _) =
+                plan_section(&section("first_blow"), 1.0, false, &mut GameRng::new(seed));
+            for hazard in hazards {
+                if let HazardKind::Wave { gap_w, .. } = hazard.kind {
+                    assert!((GAP_MIN..=GAP_MAX * GAP_WIDEST_FACTOR).contains(&gap_w));
+                    widths.push(gap_w);
+                }
+            }
+        }
+        assert!(widths.iter().any(|w| *w < GAP_MAX));
+        assert!(widths.iter().any(|w| *w > GAP_MAX * 1.3));
+    }
+
+    #[test]
+    fn crests_sway_a_little_and_the_collision_goes_with_them() {
+        let hazard = Hazard {
+            at: 0.0,
+            x: 0.0,
+            w: FIELD_W,
+            h: 8.0,
+            kind: HazardKind::Wave {
+                gap_x: 100.0,
+                gap_w: 14.0,
+            },
+        };
+        let y = SHIP_TOP;
+        // A quarter wave along, the crest is at the far end of its sway.
+        let progress = std::f32::consts::FRAC_PI_2 / CREST_SWAY_RATE;
+        assert!((crest_sway(0.0, progress) - CREST_SWAY).abs() < 0.01);
+        assert!(!ship_touches(100.0 + CREST_SWAY, &hazard, y, progress));
+        assert!(ship_touches(100.0, &hazard, y, progress));
     }
 
     #[test]

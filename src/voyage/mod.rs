@@ -253,6 +253,20 @@ pub fn check_fate(ship: &Ship, voyage: &Voyage, balance: &Balance) -> Fate {
     Fate::Continue
 }
 
+/// The numbers behind the hidden test, for the log.
+fn gate_report(ship: &Ship, voyage: &Voyage) -> String {
+    format!(
+        "clamps {:.2} water {:.1} hull {:.1} list {:.1} rogue hits {} hits {} flags {:?}",
+        ship.clamps,
+        ship.water,
+        ship.hull,
+        ship.list_deg,
+        voyage.rogue_hits,
+        voyage.hazard_hits,
+        voyage.flags
+    )
+}
+
 /// How the voyage ended, for the outcome screen.
 #[derive(Resource, Debug, Clone, Copy, PartialEq)]
 pub struct Ending {
@@ -303,10 +317,14 @@ fn resolve_fate(
     match check_fate(&ship, &voyage, &content.balance) {
         Fate::Continue => {}
         Fate::PassGate => {
+            info!("last contact passed: {}", gate_report(&ship, &voyage));
             voyage.past_gate = true;
             voyage.add_log("THE ANDERSON STILL HAS YOU ON HER RADAR.");
         }
-        Fate::Lost => finish(false, &voyage),
+        Fate::Lost => {
+            info!("ship lost: {}", gate_report(&ship, &voyage));
+            finish(false, &voyage);
+        }
         Fate::Reached => finish(true, &voyage),
     }
 }

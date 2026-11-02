@@ -1,5 +1,6 @@
 //! How the voyage ended, and the memorial.
 
+mod arrival;
 mod closing;
 
 use bevy::prelude::*;
@@ -12,38 +13,30 @@ use crate::states::GameState;
 use crate::ui::font::wrap;
 use crate::ui::palette::Pal;
 use crate::ui::typing::{AfterTyping, FinishTyping, Typed, enter_may_advance, typed_lines};
-use crate::ui::{at, centered, label, rect, z};
-use crate::voyage::map::{MAP_H, MAP_W, MapImage, project};
+use crate::ui::{centered, label, rect, z};
 use crate::voyage::{Ending, Voyage};
 use closing::{CLOSING_SECONDS, ClosingCues, ClosingPart, ClosingWorld, SKIP_AFTER};
 
 const COLUMNS: usize = 50;
 const TEXT_X: f32 = 10.0;
-const MAP_X: f32 = 48.0;
-const MAP_Y: f32 = 41.0;
-/// Seconds before the words come up.
-const TEXT_AFTER: f32 = 4.0;
 const CREW: u32 = 29;
 const TOLL_SECONDS: f32 = 2.5;
 
 #[derive(Resource, Default)]
-struct OutcomeClock(f32);
-
-#[derive(Component)]
-struct ChartPart;
+pub(crate) struct OutcomeClock(f32);
 
 fn enter_outcome(
     mut commands: Commands,
     ending: Res<Ending>,
-    map: Res<MapImage>,
     sprites: Res<Sprites>,
     content: Res<Content>,
     server: Res<AssetServer>,
     mut rng: ResMut<GameRng>,
 ) {
     commands.insert_resource(OutcomeClock::default());
-    let scope = DespawnOnExit(GameState::Outcome);
-    if !ending.reached_bay {
+    if ending.reached_bay {
+        arrival::spawn_arrival(&mut commands, &sprites, &content, &server);
+    } else {
         closing::spawn_closing(
             &mut commands,
             &sprites,
@@ -52,35 +45,7 @@ fn enter_outcome(
             &mut rng,
             &server,
         );
-        return;
     }
-    commands.spawn((
-        rect(0.0, 0.0, 320.0, 200.0, Pal::Black, z::BACKGROUND),
-        scope.clone(),
-    ));
-    commands.spawn((
-        Sprite::from_image(map.0.clone()),
-        at(
-            MAP_X + MAP_W as f32 / 2.0,
-            MAP_Y + MAP_H as f32 / 2.0,
-            z::FIELD,
-        ),
-        ChartPart,
-        scope.clone(),
-    ));
-    let spot = project(ending.position);
-    commands.spawn((
-        rect(
-            MAP_X + spot.x.floor() - 1.0,
-            MAP_Y + spot.y.floor() - 1.0,
-            3.0,
-            3.0,
-            Pal::Yellow,
-            z::SHIP,
-        ),
-        ChartPart,
-        scope,
-    ));
 }
 
 fn outcome_timeline(
@@ -96,22 +61,18 @@ fn outcome_timeline(
     mut clock: ResMut<OutcomeClock>,
     mut cues: Option<ResMut<ClosingCues>>,
     mut world: ClosingWorld,
-    parts: Query<Entity, Or<(With<ChartPart>, With<ClosingPart>)>>,
+    parts: Query<Entity, With<ClosingPart>>,
     mut sfx: MessageWriter<Sfx>,
     mut next: ResMut<NextState<GameState>>,
 ) {
     let words_at = if ending.reached_bay {
-        TEXT_AFTER
+        arrival::ARRIVAL_SECONDS
     } else {
         CLOSING_SECONDS
     };
     let before = clock.0;
     clock.0 += time.delta_secs();
-    if !ending.reached_bay
-        && before < words_at
-        && before >= SKIP_AFTER
-        && keys.just_pressed(KeyCode::Enter)
-    {
+    if before < words_at && before >= SKIP_AFTER && keys.just_pressed(KeyCode::Enter) {
         clock.0 = words_at;
     }
     let reached_words = before < words_at && clock.0 >= words_at;
@@ -274,7 +235,9 @@ impl Plugin for OutcomePlugin {
             .add_systems(
                 Update,
                 (
-                    outcome_timeline.run_if(in_state(GameState::Outcome)),
+                    (outcome_timeline, arrival::draw_arrival)
+                        .chain()
+                        .run_if(in_state(GameState::Outcome)),
                     ring_bell.run_if(in_state(GameState::Memorial)),
                 ),
             );

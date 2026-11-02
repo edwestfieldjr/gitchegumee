@@ -366,7 +366,7 @@ pub fn spawn_closing(
         depth.clone(),
     ));
     commands.spawn((
-        centered("", 20.0, Pal::Foam, 2.0),
+        centered("  0 FEET", 20.0, Pal::Foam, 2.0),
         DepthText,
         Visibility::Hidden,
         depth.clone(),
