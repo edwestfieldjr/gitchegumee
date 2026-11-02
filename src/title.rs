@@ -4,7 +4,6 @@ use bevy::prelude::*;
 
 use crate::audio::Sfx;
 use crate::boot::Sprites;
-use crate::content::Content;
 use crate::states::GameState;
 use crate::ui::palette::Pal;
 use crate::ui::{at, centered, rect, z};
@@ -12,7 +11,7 @@ use crate::ui::{at, centered, rect, z};
 const WATERLINE: f32 = 128.0;
 const SHIP_Y: f32 = 113.0;
 
-fn enter_title(mut commands: Commands, sprites: Res<Sprites>, content: Res<Content>) {
+fn enter_title(mut commands: Commands, sprites: Res<Sprites>) {
     let scope = DespawnOnExit(GameState::Title);
     commands.spawn((
         rect(0.0, 0.0, 320.0, WATERLINE, Pal::Night, z::BACKGROUND),
@@ -51,10 +50,6 @@ fn enter_title(mut commands: Commands, sprites: Res<Sprites>, content: Res<Conte
     commands.spawn((
         Sprite::from_image(sprites.side.clone()),
         at(160.0, SHIP_Y, z::SHIP),
-        scope.clone(),
-    ));
-    commands.spawn((
-        centered(content.text.title_dedication.clone(), 164.0, Pal::Foam, 1.0),
         scope.clone(),
     ));
     commands.spawn((centered("PRESS ENTER", 182.0, Pal::Amber, 1.0), scope));

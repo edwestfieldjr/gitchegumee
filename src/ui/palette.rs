@@ -87,13 +87,14 @@ impl Pal {
 /// Snap RGBA8 pixels to the palette. Pixels are either opaque or fully clear,
 /// so sprite art cannot introduce colors the palette does not have.
 pub fn remap_rgba(pixels: &mut [u8]) {
-    for pixel in pixels.chunks_exact_mut(4) {
-        if pixel[3] < 128 {
-            pixel.copy_from_slice(&[0, 0, 0, 0]);
+    let (chunks, _) = pixels.as_chunks_mut::<4>();
+    for pixel in chunks {
+        *pixel = if pixel[3] < 128 {
+            [0, 0, 0, 0]
         } else {
             let [r, g, b] = Pal::nearest([pixel[0], pixel[1], pixel[2]]).rgb();
-            pixel.copy_from_slice(&[r, g, b, 255]);
-        }
+            [r, g, b, 255]
+        };
     }
 }
 

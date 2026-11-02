@@ -1,14 +1,29 @@
 //! Developer tools, built only with `--features dev`.
 //!
-//! `DOWNBOUND_SHOT=<path>` saves a screenshot after `DOWNBOUND_SHOT_AFTER`
-//! seconds (default 3), then exits. F12 saves one to `screenshot.png`.
+//! - F12 saves `screenshot.png`.
+//! - `DOWNBOUND_SHOT=<path>` saves a screenshot after `DOWNBOUND_SHOT_AFTER`
+//!   seconds (default 3), then exits.
+//! - `DOWNBOUND_SHOT_DIR=<dir>` saves one soon after each state change.
+//! - `DOWNBOUND_AUTOPLAY=careful|careless` plays a whole run and exits after
+//!   the memorial. `DOWNBOUND_SPEED=<n>` runs game time faster.
 
+use bevy::input::InputSystems;
 use bevy::prelude::*;
 use bevy::render::view::screenshot::{Screenshot, save_to_disk};
 
+use crate::states::GameState;
+
+const SHOT_DELAY: f32 = 1.2;
+/// Real seconds to stay on the outcome screen, so its text can be captured.
+const SECONDS_AT_OUTCOME: f32 = 5.0;
+/// Seconds to wait for shaders to compile before autoplay starts.
+const AUTOPLAY_WARMUP: f32 = 14.0;
+const PRESS_EVERY: f32 = 0.4;
+const SECONDS_AT_MEMORIAL: f32 = 8.0;
+
 fn timed_shot(
     mut commands: Commands,
-    time: Res<Time>,
+    time: Res<Time<Real>>,
     mut taken_at: Local<Option<f32>>,
     mut exit: MessageWriter<AppExit>,
 ) {
@@ -41,10 +56,140 @@ fn key_shot(mut commands: Commands, keys: Res<ButtonInput<KeyCode>>) {
     }
 }
 
+/// Screenshot each screen shortly after it opens, and log each change.
+fn state_shots(
+    mut commands: Commands,
+    time: Res<Time<Real>>,
+    state: Res<State<GameState>>,
+    mut shown: Local<Option<GameState>>,
+    mut since: Local<f32>,
+    mut pending: Local<bool>,
+    mut count: Local<u32>,
+    mut outcome_text_shot: Local<bool>,
+) {
+    if *shown != Some(*state.get()) {
+        *shown = Some(*state.get());
+        *since = time.elapsed_secs();
+        *pending = true;
+        info!("state: {:?}", state.get());
+    }
+    let late_outcome = *state.get() == GameState::Outcome
+        && !*outcome_text_shot
+        && time.elapsed_secs() >= *since + SECONDS_AT_OUTCOME - 1.0;
+    if late_outcome {
+        *outcome_text_shot = true;
+        *pending = true;
+    }
+    if *pending && time.elapsed_secs() >= *since + SHOT_DELAY {
+        *pending = false;
+        if let Ok(dir) = std::env::var("DOWNBOUND_SHOT_DIR") {
+            *count += 1;
+            let path = format!("{dir}/{:03}_{:?}.png", *count, state.get());
+            commands
+                .spawn(Screenshot::primary_window())
+                .observe(save_to_disk(path));
+        }
+    }
+}
+
+#[derive(Default)]
+struct Autoplay {
+    last_press: f32,
+    held: Vec<KeyCode>,
+    port_step: usize,
+    memorial_since: Option<f32>,
+    outcome_since: Option<f32>,
+}
+
+/// Press keys through the normal input resource, so the game's own input
+/// handling is what gets exercised.
+fn autoplay(
+    time: Res<Time<Real>>,
+    state: Res<State<GameState>>,
+    mut keys: ResMut<ButtonInput<KeyCode>>,
+    mut exit: MessageWriter<AppExit>,
+    mut play: Local<Autoplay>,
+) {
+    let Ok(mode) = std::env::var("DOWNBOUND_AUTOPLAY") else {
+        return;
+    };
+    let careful = mode == "careful";
+    let now = time.elapsed_secs();
+    for key in std::mem::take(&mut play.held) {
+        keys.release(key);
+    }
+    if now < AUTOPLAY_WARMUP {
+        return;
+    }
+    if *state.get() == GameState::Voyage {
+        keys.press(KeyCode::Space);
+    } else {
+        keys.release(KeyCode::Space);
+    }
+    if now - play.last_press < PRESS_EVERY {
+        return;
+    }
+    let key = match state.get() {
+        GameState::Boot => return,
+        GameState::Port if careful => {
+            // All clamps, north-shore route, then sail.
+            const STEPS: [KeyCode; 6] = [
+                KeyCode::ArrowRight,
+                KeyCode::ArrowRight,
+                KeyCode::ArrowDown,
+                KeyCode::ArrowRight,
+                KeyCode::ArrowDown,
+                KeyCode::Enter,
+            ];
+            let key = STEPS[play.port_step.min(STEPS.len() - 1)];
+            play.port_step += 1;
+            key
+        }
+        GameState::Voyage => return,
+        GameState::Helm => {
+            if careful {
+                KeyCode::ArrowDown
+            } else {
+                return;
+            }
+        }
+        GameState::Outcome => {
+            let since = *play.outcome_since.get_or_insert(now);
+            if now - since < SECONDS_AT_OUTCOME {
+                return;
+            }
+            KeyCode::Enter
+        }
+        GameState::Memorial => {
+            let since = *play.memorial_since.get_or_insert(now);
+            if now - since > SECONDS_AT_MEMORIAL {
+                exit.write(AppExit::Success);
+            }
+            return;
+        }
+        _ => KeyCode::Enter,
+    };
+    keys.press(key);
+    play.held.push(key);
+    play.last_press = now;
+}
+
+fn set_speed(mut time: ResMut<Time<Virtual>>) {
+    if let Some(speed) = std::env::var("DOWNBOUND_SPEED")
+        .ok()
+        .and_then(|value| value.parse().ok())
+    {
+        time.set_relative_speed(speed);
+        time.set_max_delta(std::time::Duration::from_millis(500));
+    }
+}
+
 pub struct DevToolsPlugin;
 
 impl Plugin for DevToolsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, (timed_shot, key_shot));
+        app.add_systems(Startup, set_speed)
+            .add_systems(PreUpdate, autoplay.after(InputSystems))
+            .add_systems(Update, (timed_shot, key_shot, state_shots));
     }
 }

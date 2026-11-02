@@ -165,7 +165,9 @@ mod tests {
     #[test]
     fn the_map_only_uses_palette_colors() {
         let chart = real_content().chart;
-        for pixel in map_pixels(&chart).chunks_exact(4) {
+        let pixels = map_pixels(&chart);
+        let (chunks, _) = pixels.as_chunks::<4>();
+        for pixel in chunks {
             let rgb = [pixel[0], pixel[1], pixel[2]];
             assert_eq!(Pal::nearest(rgb).rgb(), rgb);
         }

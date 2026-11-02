@@ -1,9 +1,15 @@
+// Bevy systems declare what they use as parameters, so these two lints fire on
+// ordinary, readable systems.
+#![allow(clippy::too_many_arguments, clippy::type_complexity)]
+
 mod audio;
 mod boot;
 mod content;
 #[cfg(feature = "dev")]
 mod devtools;
 mod events;
+mod helm;
+mod outcome;
 mod rng;
 mod ship;
 mod states;
@@ -32,7 +38,16 @@ fn main() {
         states::StatesPlugin,
         rng::RngPlugin,
         ui::UiPlugin,
+        content::ContentPlugin,
         boot::BootPlugin,
+        title::TitlePlugin,
+        weather::WeatherPlugin,
+        ship::ShipPlugin,
+        voyage::VoyagePlugin,
+        events::EventsPlugin,
+        audio::AudioGamePlugin,
+        helm::HelmPlugin,
+        outcome::OutcomePlugin,
     ));
     #[cfg(feature = "dev")]
     app.add_plugins(devtools::DevToolsPlugin);

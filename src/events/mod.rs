@@ -87,7 +87,6 @@ fn reset_timeline(content: Res<Content>, mut timeline: ResMut<Timeline>) {
 
 /// Fire whatever has come due. Log lines stack up; a panel or helm section
 /// stops the voyage layer until it is done.
-#[allow(clippy::too_many_arguments)] // A Bevy system: each parameter is a resource it needs.
 fn run_timeline(
     mut commands: Commands,
     content: Res<Content>,

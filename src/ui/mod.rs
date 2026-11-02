@@ -265,8 +265,11 @@ impl Plugin for UiPlugin {
         };
         app.insert_resource(FontImage(font))
             .add_systems(Startup, setup_view)
-            .add_systems(Update, fit_view)
-            .add_systems(PostUpdate, (draw_labels, draw_bars));
+            // Labels despawn and respawn their glyphs. This has to finish before
+            // PostUpdate, where Bevy inserts a mesh on every newly added sprite
+            // and would otherwise target a glyph that was just removed.
+            .add_systems(Update, (fit_view, draw_labels))
+            .add_systems(PostUpdate, draw_bars);
     }
 }
 

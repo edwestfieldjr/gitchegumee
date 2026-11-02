@@ -182,7 +182,7 @@
             (
                 label: "PASS WELL WIDE OF THE SHOALS",
                 result: "YOU ALTER AWAY AND THE CLOCK RUNS ON. THE WATER STAYS DEEP UNDER YOU, AS FAR AS YOU CAN TELL.",
-                effects: [SetFlag("wide_of_caribou"), Delay(20.0)],
+                effects: [SetFlag("wide_of_caribou"), Delay(30.0)],
             ),
             (
                 label: "HOLD THE SHORTER COURSE",

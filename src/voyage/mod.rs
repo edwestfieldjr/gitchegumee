@@ -32,6 +32,12 @@ pub struct SimStep(pub f32);
 #[derive(Resource, Debug, Clone, Copy, Default)]
 pub struct ClockRate(pub f32);
 
+/// The speed used to turn lost minutes into lost miles.
+const DELAY_SPEED_KN: f32 = 12.0;
+/// Close enough to a waypoint to log passing it.
+const PASSING_NM: f32 = 8.0;
+/// The ship's own last position is never announced as a place on the route.
+const UNANNOUNCED_WAYPOINT: &str = "WRECK SITE";
 const NORTH_ROUTE_FLAG: &str = "north_route";
 
 #[derive(Resource, Debug, Clone)]
@@ -50,7 +56,8 @@ pub struct Voyage {
     pub log: Vec<String>,
     pub hazard_hits: u32,
     pub rogue_hits: u32,
-    pub departed_at: f32,
+    /// Waypoints already announced on the radio log.
+    pub passed: BTreeSet<String>,
 }
 
 impl Default for Voyage {
@@ -66,7 +73,7 @@ impl Default for Voyage {
             log: Vec::new(),
             hazard_hits: 0,
             rogue_hits: 0,
-            departed_at: 0.0,
+            passed: BTreeSet::new(),
         }
     }
 }
@@ -82,7 +89,6 @@ impl Voyage {
             minute,
             route,
             path,
-            departed_at: minute,
             ..Self::default()
         };
         if route == RouteId::North {
@@ -137,6 +143,22 @@ impl Voyage {
         self.nm = (self.nm + speed_kn * hours).min(limit);
     }
 
+    /// Log any named waypoint the ship has just come up on.
+    pub fn log_waypoints(&mut self, chart: &Chart) {
+        let Some(route) = chart.route(self.route) else {
+            return;
+        };
+        let here = self.position();
+        for waypoint in &route.points[1..route.points.len().saturating_sub(1)] {
+            if waypoint.name != UNANNOUNCED_WAYPOINT
+                && here.distance_nm(LatLon::from(waypoint)) <= PASSING_NM
+                && self.passed.insert(waypoint.name.clone())
+            {
+                self.add_log(format!("PASSING {}.", waypoint.name));
+            }
+        }
+    }
+
     pub fn add_log(&mut self, line: impl Into<String>) {
         self.log.extend(wrap(&line.into(), LOG_COLUMNS));
         let excess = self.log.len().saturating_sub(LOG_LINES);
@@ -164,7 +186,11 @@ impl Voyage {
                 }
             }
             Effect::Lee(minutes) => self.lee_until = self.minute + minutes,
-            Effect::Delay(minutes) => self.minute += minutes,
+            // The clock is history and keeps its time, so lost time is paid
+            // for in ground not covered.
+            Effect::Delay(minutes) => {
+                self.nm = (self.nm - DELAY_SPEED_KN * minutes / 60.0).max(0.0);
+            }
             Effect::Hull(_)
             | Effect::Water(_)
             | Effect::List(_)
@@ -251,6 +277,7 @@ fn move_ship(
         step.0 / 60.0,
         content.balance.final_stretch_nm,
     );
+    voyage.log_waypoints(&content.chart);
 }
 
 fn resolve_fate(
@@ -326,7 +353,7 @@ impl Plugin for VoyagePlugin {
                 Update,
                 (
                     resolve_fate.run_if(in_state(GameState::Voyage)),
-                    take_effects,
+                    take_effects.run_if(resource_exists::<Content>),
                     count_hits,
                 ),
             )
@@ -506,6 +533,34 @@ mod tests {
         assert_eq!(voyage.sea_state(balance).wave_factor, 0.75);
         voyage.nm = voyage.length_nm() * 0.9;
         assert_eq!(voyage.sea_state(balance).wave_factor, 1.0);
+    }
+
+    #[test]
+    fn waypoints_are_logged_once_and_the_wreck_site_never() {
+        let (content, mut voyage) = ready();
+        let length = voyage.length_nm();
+        let mut nm = 0.0;
+        while nm < length {
+            voyage.nm = nm;
+            voyage.log_waypoints(&content.chart);
+            nm += 2.0;
+        }
+        let count = |text: &str| voyage.log.iter().filter(|line| line.contains(text)).count();
+        assert_eq!(count("KEWEENAW"), 1);
+        assert_eq!(count("CARIBOU"), 1);
+        assert_eq!(count("WRECK"), 0);
+    }
+
+    #[test]
+    fn lost_time_costs_ground_but_never_moves_the_clock() {
+        let (content, mut voyage) = ready();
+        voyage.nm = 50.0;
+        let clock = voyage.minute;
+        voyage.apply_effect(&Effect::Delay(30.0), &content.chart);
+        assert_eq!(voyage.nm, 44.0);
+        assert_eq!(voyage.minute, clock);
+        voyage.apply_effect(&Effect::Delay(9999.0), &content.chart);
+        assert_eq!(voyage.nm, 0.0);
     }
 
     #[test]

@@ -8,8 +8,6 @@ use crate::voyage::Voyage;
 
 /// Wave height at which the storm counts as being at full strength.
 const FULL_STORM_WAVE_FT: f32 = 25.0;
-/// Visibility below this counts as snowing.
-const SNOW_VISIBILITY: f32 = 0.6;
 
 #[derive(Resource, Debug, Clone, Copy, PartialEq, Default)]
 pub struct Weather {
@@ -23,10 +21,6 @@ impl Weather {
     /// Storm strength from 0 to 1. It drives pounding and the music layers.
     pub fn storm(&self) -> f32 {
         (self.wave_ft / FULL_STORM_WAVE_FT).clamp(0.0, 1.0)
-    }
-
-    pub fn snowing(&self) -> bool {
-        self.visibility < SNOW_VISIBILITY
     }
 }
 
@@ -128,8 +122,9 @@ mod tests {
         let content = real_content();
         let at_one_am = sample(&content.weather, At(10, 1, 0).minute());
         assert_eq!((at_one_am.wind_kn, at_one_am.wave_ft), (52.0, 10.0));
-        assert!(!sample(&content.weather, At(10, 14, 0).minute()).snowing());
-        assert!(sample(&content.weather, At(10, 14, 45).minute()).snowing());
+        let before_snow = sample(&content.weather, At(10, 14, 0).minute());
+        let in_snow = sample(&content.weather, At(10, 14, 45).minute());
+        assert!(in_snow.visibility < before_snow.visibility);
         let peak = sample(&content.weather, At(10, 18, 0).minute());
         assert_eq!(peak.wave_ft, 25.0);
         assert_eq!(peak.storm(), 1.0);
