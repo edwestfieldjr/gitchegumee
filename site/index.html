@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gitche Gumee: The Last Voyage of the Edmund Fitzgerald</title>
+<meta name="description" content="A retro, Atari-style memorial game about the last voyage of the SS Edmund Fitzgerald across Lake Superior, November 9–10, 1975.">
+<link rel="icon" href="img/freighter.png">
+<style>
+  :root {
+    --night: #0a1638;
+    --deep: #050b1e;
+    --lake: #0040a0;
+    --foam: #c0e0f0;
+    --white: #f0f0e8;
+    --gray: #a0a0a0;
+    --slate: #505050;
+    --amber: #e08000;
+    --yellow: #f0d040;
+    --mono: ui-monospace, "Cascadia Mono", "DejaVu Sans Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--deep);
+    color: var(--foam);
+    font: 1rem/1.65 var(--mono);
+  }
+  img { display: block; max-width: 100%; image-rendering: pixelated; }
+  a { color: var(--yellow); }
+  a:hover { color: var(--white); }
+  :focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
+  .wrap { max-width: 60rem; margin: 0 auto; padding: 0 1rem; }
+
+  header { background: var(--night); border-bottom: 4px solid var(--slate); text-align: center; padding: 4rem 0 3rem; }
+  .eyebrow { color: var(--amber); letter-spacing: .12em; margin: 0 0 .75rem; text-transform: uppercase; font-size: .9rem; }
+  h1 { color: var(--white); font-size: clamp(2.25rem, 8vw, 4.5rem); line-height: 1.05; margin: 0; letter-spacing: .02em; text-transform: uppercase; }
+  .subtitle { color: var(--foam); font-size: clamp(1rem, 3vw, 1.35rem); margin: .75rem 0 2.5rem; }
+  header p { max-width: none; }
+  .ship { width: min(100%, 576px); height: auto; margin: 0 auto; }
+  .sea { height: 8px; margin: 0 auto 2rem; max-width: 576px; background: repeating-linear-gradient(90deg, var(--foam) 0 24px, var(--lake) 24px 48px); }
+  .actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .75rem; }
+  .button { display: inline-block; padding: .55rem 1.1rem; border: 2px solid var(--amber); color: var(--amber); text-decoration: none; text-transform: uppercase; }
+  .button:hover { background: var(--amber); color: var(--deep); }
+
+  section { padding: 3rem 0; border-bottom: 1px solid var(--slate); }
+  h2 { color: var(--amber); font-size: 1.15rem; letter-spacing: .08em; margin: 0 0 1.25rem; text-transform: uppercase; }
+  h3 { color: var(--white); font-size: 1rem; margin: 0 0 .35rem; text-transform: uppercase; }
+  p { margin: 0 0 1rem; max-width: 46rem; }
+  p:last-child { margin-bottom: 0; }
+
+  .memorial { text-align: center; }
+  .memorial p { margin-left: auto; margin-right: auto; }
+  .memorial strong { display: block; color: var(--white); font-size: 1.35rem; font-weight: 400; margin-bottom: .75rem; }
+
+  .modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1.5rem; margin-top: 1.5rem; }
+  .mode { background: var(--night); border: 2px solid var(--slate); padding: 1.25rem; }
+
+  .shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); gap: 1.5rem; }
+  figure { margin: 0; }
+  figure img { width: 100%; height: auto; aspect-ratio: 8 / 5; object-fit: contain; object-position: top; background: var(--night); border: 2px solid var(--slate); }
+  figcaption { color: var(--gray); font-size: .9rem; margin-top: .5rem; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: .55rem .75rem .55rem 0; border-bottom: 1px solid var(--slate); text-align: left; vertical-align: top; }
+  th { color: var(--white); font-weight: 400; }
+  .timeline th { white-space: nowrap; color: var(--yellow); }
+
+  pre { background: var(--night); border: 2px solid var(--slate); color: var(--white); margin: 0 0 1rem; overflow-x: auto; padding: 1rem; }
+  code { font-family: var(--mono); }
+
+  footer { color: var(--gray); font-size: .9rem; padding: 2.5rem 0 3rem; }
+  @media (max-width: 34rem) {
+    header { padding-top: 3rem; }
+    .timeline th { white-space: normal; width: 7.5rem; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <p class="eyebrow">Lake Superior, November 1975</p>
+    <h1>Gitche Gumee</h1>
+    <p class="subtitle">The Last Voyage of the Edmund Fitzgerald</p>
+    <img class="ship" src="img/freighter.png" width="576" height="180" alt="Pixel-art side view of a long Great Lakes freighter.">
+    <div class="sea"></div>
+    <div class="actions" data-repo-links hidden>
+      <a class="button" data-repo-link href="#">Source on GitHub</a>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="memorial">
+    <p><strong>29 men. No bodies recovered. No distress call.</strong></p>
+    <p>The SS <em>Edmund Fitzgerald</em> sank in a severe storm on November 10, 1975, about 17 miles from the entrance to Whitefish Bay. The cause is still unknown. This game is a memorial: it uses fictional crew names and roles, and it doesn't present any one theory as fact.</p>
+  </section>
+
+  <section>
+    <h2>The voyage</h2>
+    <p>A retro, Atari-style game in 320×200 and 16 colors. You command the ship from the dock at Superior, Wisconsin, as the storm builds on the historical clock. There is no score: only the ship, the weather and the decisions you make.</p>
+    <div class="modes">
+      <div class="mode">
+        <h3>The chart</h3>
+        <p>Give your speed and pump orders, then get under way. Radio traffic and events arrive at their real times, and what you decide stays with you.</p>
+      </div>
+      <div class="mode">
+        <h3>The helm</h3>
+        <p>Steer through top-down scrolling seas, finding the gaps in the waves and avoiding debris and shoals through wind and snow. Damage and water taken on stay with the ship.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>From the game</h2>
+    <div class="shots">
+      <figure>
+        <img src="img/port.png" width="320" height="200" loading="lazy" alt="Port screen for Superior, Wisconsin, with settings for hatch clamps and route.">
+        <figcaption>Before sailing: how many hatch clamps to secure, and which route to take.</figcaption>
+      </figure>
+      <figure>
+        <img src="img/chart.png" width="320" height="187" loading="lazy" alt="Chart of Lake Superior with the ship's route, gauges and a radio log.">
+        <figcaption>The chart: position, ship's condition and the radio log.</figcaption>
+      </figure>
+      <figure>
+        <img src="img/helm.png" width="320" height="200" loading="lazy" alt="Top-down view of the freighter steering between breaking waves in snow.">
+        <figcaption>The helm: no radar, no beacon, and the <em>Anderson</em> calling your course.</figcaption>
+      </figure>
+      <figure>
+        <img src="img/event.png" width="320" height="200" loading="lazy" alt="Text panel reporting the result of an order given near Caribou Island.">
+        <figcaption>Events: text panels in the style of an 8-bit adventure game.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>What happened</h2>
+    <table class="timeline">
+      <tbody>
+        <tr><th scope="row">Nov 9, 2:15 p.m.</th><td>Departs Superior, Wisconsin, with 26,116 long tons of taconite pellets, bound for Zug Island near Detroit.</td></tr>
+        <tr><th scope="row">Nov 9, 7 p.m.</th><td>Gale warnings issued for all of Lake Superior.</td></tr>
+        <tr><th scope="row">Nov 10, 1 a.m.</th><td>The storm hits.</td></tr>
+        <tr><th scope="row">Nov 10, ~3:30 p.m.</th><td>Reports damage, water coming aboard and a list.</td></tr>
+        <tr><th scope="row">Nov 10, ~4:10 p.m.</th><td>Reports radar failure and asks the <em>Arthur M. Anderson</em> to track the ship.</td></tr>
+        <tr><th scope="row">Nov 10, 7:10 p.m.</th><td>Last radio contact.</td></tr>
+        <tr><th scope="row">Nov 10, ~7:20 p.m.</th><td>Gone from radar and radio.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Controls</h2>
+    <table>
+      <tbody>
+        <tr><th scope="row">Menus and text</th><td>Up/Down to choose, Space or Enter to confirm</td></tr>
+        <tr><th scope="row">Port</th><td>Left/Right changes a setting</td></tr>
+        <tr><th scope="row">Chart</th><td>Up/Down for speed, 1–6 for pumps, R to repair, Space or Enter to go</td></tr>
+        <tr><th scope="row">Helm</th><td>Left/Right or A/D to steer, Up/Down for speed</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Play it</h2>
+    <p>The game runs on desktop Linux and is built from source for now. There's no browser version yet. You need stable Rust; on Arch Linux, install the system dependencies, then run the game from the repository root:</p>
+    <pre><code>sudo pacman -S --needed alsa-lib systemd-libs vulkan-icd-loader pkgconf
+cargo run --release</code></pre>
+    <p>The first build takes a while.</p>
+  </section>
+</main>
+
+<footer class="wrap">
+  <p>An independent project, not affiliated with or endorsed by the families of the crew, the ship's owners, or any related organization. Early in development.</p>
+</footer>
+
+<script>
+  // On a github.io project page, the address names the repository.
+  (function () {
+    var owner = location.hostname.match(/^([^.]+)\.github\.io$/);
+    var repo = location.pathname.split("/")[1];
+    if (!owner || !repo) return;
+    document.querySelector("[data-repo-link]").href =
+      "https://github.com/" + owner[1] + "/" + repo;
+    document.querySelector("[data-repo-links]").hidden = false;
+  })();
+</script>
+</body>
+</html>

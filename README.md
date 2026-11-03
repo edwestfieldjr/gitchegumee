@@ -65,6 +65,8 @@ Events, the route, the weather timeline, text and balance are data, kept in RON
 files under `assets/data/`. Game speed and most other tuning are in
 `assets/data/balance.ron`.
 
+- [`site/`](site/) is the GitHub Pages landing page, deployed by
+  [`.github/workflows/pages.yml`](.github/workflows/pages.yml) on pushes to `main`.
 - [`docs/design.md`](docs/design.md) has the design notes and dev tools.
   **It contains spoilers.**
 - [`CHANGELOG.md`](CHANGELOG.md) records the changes made since the original
