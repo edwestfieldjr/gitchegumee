@@ -54,13 +54,60 @@ pub fn is_water(chart: &Chart, point: (f32, f32)) -> bool {
     in_polygon(&chart.lake, point) && !chart.islands.iter().any(|island| in_polygon(island, point))
 }
 
-/// RGBA8 pixels of the map: land, water, and a sand line along the coast.
-fn map_pixels(chart: &Chart) -> Vec<u8> {
+/// Which map pixels are water, in rows: the lake less its islands, plus rivers.
+fn water_mask(chart: &Chart) -> Vec<bool> {
     let (width, height) = (MAP_W as usize, MAP_H as usize);
-    let water: Vec<bool> = (0..height)
+    let mut water: Vec<bool> = (0..height)
         .flat_map(|y| (0..width).map(move |x| (x, y)))
         .map(|(x, y)| is_water(chart, unproject(x as f32 + 0.5, y as f32 + 0.5)))
         .collect();
+    for river in &chart.rivers {
+        stamp_river(&mut water, river);
+    }
+    water
+}
+
+/// Mark a river one pixel wide. Each pixel shares an edge with the one before,
+/// so the water never narrows to a diagonal step.
+fn stamp_river(water: &mut [bool], river: &[(f32, f32)]) {
+    const STEPS_PER_PIXEL: f32 = 4.0;
+    let width = MAP_W as usize;
+    let mut set = |x: i32, y: i32| {
+        if (0..MAP_W as i32).contains(&x) && (0..MAP_H as i32).contains(&y) {
+            water[y as usize * width + x as usize] = true;
+        }
+    };
+    let mut last: Option<(i32, i32)> = None;
+    for leg in river.windows(2) {
+        let [(from_lat, from_lon), (to_lat, to_lon)] = [leg[0], leg[1]];
+        let from = project(LatLon {
+            lat: from_lat,
+            lon: from_lon,
+        });
+        let to = project(LatLon {
+            lat: to_lat,
+            lon: to_lon,
+        });
+        let steps = (from.distance(to) * STEPS_PER_PIXEL).ceil().max(1.0);
+        for step in 0..=steps as u32 {
+            let spot = from.lerp(to, step as f32 / steps);
+            let (x, y) = (spot.x.floor() as i32, spot.y.floor() as i32);
+            if let Some((last_x, last_y)) = last
+                && last_x != x
+                && last_y != y
+            {
+                set(x, last_y);
+            }
+            set(x, y);
+            last = Some((x, y));
+        }
+    }
+}
+
+/// RGBA8 pixels of the map: land, water, and a sand line along the coast.
+fn map_pixels(chart: &Chart) -> Vec<u8> {
+    let (width, height) = (MAP_W as usize, MAP_H as usize);
+    let water = water_mask(chart);
     let mut pixels = Vec::with_capacity(width * height * 4);
     for y in 0..height {
         for x in 0..width {
@@ -140,6 +187,46 @@ mod tests {
         assert!(is_water(&chart, wreck));
         assert!(!is_water(&chart, isle_royale));
         assert!(!is_water(&chart, wisconsin));
+    }
+
+    #[test]
+    fn the_st_marys_river_joins_the_lake_to_the_soo_locks() {
+        let chart = real_content().chart;
+        let water = water_mask(&chart);
+        let (width, height) = (MAP_W as usize, MAP_H as usize);
+        let pixel = |lat, lon| {
+            let spot = project(LatLon { lat, lon });
+            spot.y as usize * width + spot.x as usize
+        };
+        let soo_locks = pixel(46.50, -84.35);
+        assert!(
+            !is_water(&chart, (46.50, -84.35)),
+            "not in the lake outline"
+        );
+
+        // Flood from open water, through shared edges only.
+        let mut reached = vec![false; water.len()];
+        let mut open = vec![pixel(47.6, -87.0)];
+        while let Some(at) = open.pop() {
+            if reached[at] || !water[at] {
+                continue;
+            }
+            reached[at] = true;
+            let (x, y) = (at % width, at / width);
+            if x > 0 {
+                open.push(at - 1);
+            }
+            if x + 1 < width {
+                open.push(at + 1);
+            }
+            if y > 0 {
+                open.push(at - width);
+            }
+            if y + 1 < height {
+                open.push(at + width);
+            }
+        }
+        assert!(reached[soo_locks]);
     }
 
     #[test]

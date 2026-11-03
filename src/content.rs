@@ -98,6 +98,8 @@ pub struct RouteDef {
 pub struct Chart {
     pub lake: Vec<(f32, f32)>,
     pub islands: Vec<Vec<(f32, f32)>>,
+    /// Waterways too narrow to outline, as lines of (lat, lon) points.
+    pub rivers: Vec<Vec<(f32, f32)>>,
     pub routes: Vec<RouteDef>,
 }
 

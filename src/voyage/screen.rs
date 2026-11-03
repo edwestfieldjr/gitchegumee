@@ -305,7 +305,7 @@ fn draw_status(
         text.set(match readout.0 {
             Readout::Clock => clock_text(voyage.minute),
             Readout::Route => format!(
-                "{:>3.0} NM TO WHITEFISH BAY",
+                "{:>3.0} NM TO WHITEFISH POINT",
                 voyage.length_nm() - voyage.nm
             ),
             Readout::List => format!("LIST  {:>2.0} {side}", ship.list_deg.abs()),
