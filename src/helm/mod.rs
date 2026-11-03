@@ -1,11 +1,15 @@
 //! The action layer: a top-down run through the seas at the helm.
 
 mod debris;
+mod shoal;
 pub mod sim;
 
+use bevy::asset::RenderAssetUsages;
 use bevy::prelude::*;
+use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 
 use debris::debris_art;
+use shoal::shoal_rgba;
 
 use crate::audio::Sfx;
 use crate::boot::{FRAME_SIZE, HELM_ANGLES, Sprites};
@@ -377,7 +381,11 @@ fn step_helm(
     }
 }
 
-fn spawn_hazards(mut commands: Commands, mut run: ResMut<HelmRun>) {
+fn spawn_hazards(
+    mut commands: Commands,
+    mut run: ResMut<HelmRun>,
+    mut images: ResMut<Assets<Image>>,
+) {
     const SPAWN_ABOVE: f32 = -4.0;
     while run.spawned < run.sim.hazards.len() {
         let index = run.spawned;
@@ -449,8 +457,34 @@ fn spawn_hazards(mut commands: Commands, mut run: ResMut<HelmRun>) {
                     );
                 }
             }
+            // A shoal is one image: drawn in pieces it would take hundreds of sprites.
             HazardKind::Shoal => {
-                piece(hazard.x, 0.0, hazard.w, hazard.h, Pal::Sand, order);
+                let (width, height) = (hazard.w.floor(), hazard.h.floor());
+                let image = Image::new(
+                    Extent3d {
+                        width: width as u32,
+                        height: height as u32,
+                        depth_or_array_layers: 1,
+                    },
+                    TextureDimension::D2,
+                    shoal_rgba(width as i32, height as i32, hazard.at as u32),
+                    TextureFormat::Rgba8UnormSrgb,
+                    RenderAssetUsages::RENDER_WORLD,
+                );
+                commands.spawn((
+                    Sprite::from_image(images.add(image)),
+                    at(0.0, 0.0, order),
+                    HazardPart {
+                        index,
+                        drop: 0.0,
+                        height,
+                        x: hazard.x.floor(),
+                        w: width,
+                        crest: false,
+                    },
+                    Visibility::Hidden,
+                    scope,
+                ));
             }
         }
     }
