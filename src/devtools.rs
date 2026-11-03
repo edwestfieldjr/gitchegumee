@@ -7,17 +7,19 @@
 //! - `DOWNBOUND_AUTOPLAY=careful|careless` plays a whole run and exits after
 //!   the memorial. `DOWNBOUND_SPEED=<n>` runs game time faster.
 //! - `DOWNBOUND_JUMP=lost|reached`, with autoplay, goes straight to an ending.
+//! - `DOWNBOUND_SECTION=<id>` opens a helm section from `helm.ron` directly, with
+//!   the player at the wheel, on a fresh ship at that section's time.
 
 use bevy::input::InputSystems;
 use bevy::prelude::*;
 use bevy::render::view::screenshot::{Screenshot, save_to_disk};
 
-use crate::content::{At, Content};
-use crate::events::ActiveEvent;
+use crate::content::{At, Content, RouteId};
+use crate::events::{ActiveEvent, ActiveHelm, Timeline};
 use crate::states::{GameState, MemorialPhase};
 use crate::ui::pause::PauseKeys;
-use crate::voyage::Ending;
 use crate::voyage::route::LatLon;
+use crate::voyage::{Ending, Voyage};
 
 const SHOT_DELAY: f32 = 1.2;
 /// Real seconds to stay on the outcome screen, so its text can be captured.
@@ -228,6 +230,44 @@ fn autoplay(
     play.last_press = now;
 }
 
+/// Open one helm section. It goes by way of the port, which sets up a new run,
+/// then moves the voyage to the section's time with everything before it passed.
+fn jump_to_section(
+    mut commands: Commands,
+    state: Res<State<GameState>>,
+    content: Option<Res<Content>>,
+    mut voyage: ResMut<Voyage>,
+    mut timeline: ResMut<Timeline>,
+    mut next: ResMut<NextState<GameState>>,
+    mut done: Local<bool>,
+) {
+    let Ok(id) = std::env::var("DOWNBOUND_SECTION") else {
+        return;
+    };
+    let Some(content) = content else {
+        return;
+    };
+    if *done {
+        return;
+    }
+    match state.get() {
+        GameState::Title => next.set(GameState::Port),
+        GameState::Port => {
+            *done = true;
+            let Some(index) = content.helm.iter().position(|section| section.id == id) else {
+                error!("no helm section called {id}");
+                return;
+            };
+            let minute = content.helm[index].at.minute();
+            *voyage = Voyage::depart(&content.chart, RouteId::Standard, minute);
+            while timeline.pop_due(minute).is_some() {}
+            commands.insert_resource(ActiveHelm(index));
+            next.set(GameState::Helm);
+        }
+        _ => {}
+    }
+}
+
 fn set_speed(mut time: ResMut<Time<Virtual>>, mut done: Local<bool>) {
     if std::mem::replace(&mut *done, true) {
         return;
@@ -248,6 +288,6 @@ impl Plugin for DevToolsPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(GameState::Title), set_speed)
             .add_systems(PreUpdate, autoplay.after(InputSystems).before(PauseKeys))
-            .add_systems(Update, (timed_shot, key_shot, state_shots));
+            .add_systems(Update, (timed_shot, key_shot, state_shots, jump_to_section));
     }
 }

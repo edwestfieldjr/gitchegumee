@@ -61,7 +61,7 @@ Whole voyages are played without a window in `src/voyage/balance_tests.rs`.
 ## Dev tools
 
 With `--features dev`: `DOWNBOUND_AUTOPLAY=careful|careless` plays a run,
-`DOWNBOUND_JUMP=lost|reached` goes to an ending, `DOWNBOUND_SPEED` speeds time
+`DOWNBOUND_SECTION=<id>` opens a helm section with the player at the wheel, `DOWNBOUND_JUMP=lost|reached` goes to an ending, `DOWNBOUND_SPEED` speeds time
 up, `DOWNBOUND_SHOT_DIR` saves screenshots, and `DOWNBOUND_SEED` fixes the seed.
 
 ## To do
