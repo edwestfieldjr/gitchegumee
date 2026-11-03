@@ -25,7 +25,7 @@ time is paid for in miles not covered.
 
 | Screen | Keys |
 |---|---|
-| Menus and panels | Up/Down to choose, Enter to confirm. Enter also finishes typing text. |
+| Menus and panels | Up/Down to choose, Space or Enter to confirm. Either also finishes typing text. |
 | Port | Left/Right changes a setting. |
 | Voyage | The clock waits for orders: Up/Down speed, 1-6 pumps, R repair, then Space or Enter to go. It stops again after each helm section. |
 | Helm | Left/Right or A/D to steer, Up/Down speed. |
