@@ -70,6 +70,18 @@ const NAVE_W: i32 = 17;
 const GABLE_H: i32 = 15;
 const STONE: Pal = Pal::Sand;
 const SHADOW: Pal = Pal::Slate;
+/// A reflection stretches on the water: this many rows for each 4 church rows.
+const REFLECTION_STRETCH: i32 = 5;
+/// Rows of water the church's reflection covers, down from the river's edge.
+const REFLECTION_ROWS: i32 = 30;
+/// Rows at the river's edge that show the reflection almost whole.
+const REFLECTION_SOLID_ROWS: i32 = 4;
+/// Share of the reflection's pixels still lit at its far end.
+const REFLECTION_FAR_SHARE: i32 = 25;
+/// Sideways ripple, in pixels, by row.
+const RIPPLE: [i32; 8] = [0, 1, 1, 0, 0, -1, -1, 0];
+/// The usual 4x4 ordered-dither matrix.
+const BAYER: [[i32; 4]; 4] = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
 
 struct Canvas {
     pixels: Vec<Pal>,
@@ -265,6 +277,68 @@ fn draw_river(canvas: &mut Canvas) {
     }
 }
 
+/// Share of the reflection's pixels lit, by rows of water from the river's edge.
+fn reflection_share(rows: i32) -> i32 {
+    let fading = (REFLECTION_ROWS - REFLECTION_SOLID_ROWS).max(1);
+    let past = (rows - REFLECTION_SOLID_ROWS).clamp(0, fading);
+    100 - (100 - REFLECTION_FAR_SHARE) * past / fading
+}
+
+/// Whether ordered dithering keeps a pixel at a share from 0 to 100.
+fn dither_on(x: i32, y: i32, share: i32) -> bool {
+    let threshold = BAYER[y.rem_euclid(4) as usize][x.rem_euclid(4) as usize];
+    threshold * 100 < share * 16
+}
+
+/// Sideways ripple at some rows of water from the river's edge.
+fn ripple(rows: i32) -> i32 {
+    if rows < REFLECTION_SOLID_ROWS {
+        return 0;
+    }
+    RIPPLE[rows.rem_euclid(RIPPLE.len() as i32) as usize]
+}
+
+/// Where in the river a point of the church lands: every (x, y) of water that
+/// shows it, and whether dithering lets that pixel through.
+fn reflection_of(mut visit: impl FnMut(i32, i32, i32, i32, bool)) {
+    const MARGIN: i32 = 6;
+    let right = CHURCH_X + TOWER_W + LINK_W + NAVE_W;
+    for rows in 0..REFLECTION_ROWS {
+        let y = RIVER_Y + rows;
+        let source_y = CHURCH_BASE - rows * 4 / REFLECTION_STRETCH;
+        let shift = ripple(rows);
+        let share = reflection_share(rows);
+        for x in CHURCH_X - MARGIN..right + MARGIN {
+            visit(x, y, x - shift, source_y, dither_on(x, y, share));
+        }
+    }
+}
+
+/// The church on the water. Inside its outline the city's scattered lights give
+/// way to the reflection, dithered thinner toward the viewer.
+fn draw_reflection(canvas: &mut Canvas) {
+    // Only the church on a bare canvas, so its outline can be read back. The
+    // church itself never uses the canvas's starting color.
+    let mut church = Canvas::new();
+    draw_church(&mut church);
+    reflection_of(|x, y, source_x, source_y, on| {
+        let color = church.get(source_x, source_y);
+        if color == Pal::Night {
+            return;
+        }
+        canvas.set(x, y, if on { reflected(color) } else { Pal::Deep });
+    });
+}
+
+/// The color a part of the church takes on the water.
+fn reflected(color: Pal) -> Pal {
+    match color {
+        Pal::Black => Pal::Night,
+        Pal::Gray => Pal::Slate,
+        other => other,
+    }
+}
+
 fn scene_canvas() -> Canvas {
     let mut canvas = Canvas::new();
     draw_sky(&mut canvas);
@@ -272,6 +346,7 @@ fn scene_canvas() -> Canvas {
     draw_shore(&mut canvas);
     draw_church(&mut canvas);
     draw_river(&mut canvas);
+    draw_reflection(&mut canvas);
     canvas
 }
 
@@ -312,10 +387,28 @@ pub fn scene_sprite(image: &DetroitImage) -> impl Bundle {
     )
 }
 
-/// Sprites over the belfry slits. They show only while the bell rings.
+/// The pixels of the river that show the lit belfry slits.
+fn belfry_reflection() -> Vec<(i32, i32)> {
+    let slits = belfry_slits();
+    let mut pixels = Vec::new();
+    reflection_of(|x, y, source_x, source_y, on| {
+        let in_slit = slits.iter().any(|(slit_x, slit_y, height)| {
+            source_x == *slit_x && (*slit_y..slit_y + height).contains(&source_y)
+        });
+        if on && in_slit {
+            pixels.push((x, y));
+        }
+    });
+    pixels
+}
+
+/// Sprites over the belfry slits and their reflection. They show only while the
+/// bell rings.
 pub fn belfry_light() -> Vec<impl Bundle> {
-    belfry_slits()
-        .into_iter()
+    let slits = belfry_slits().into_iter();
+    let water = belfry_reflection().into_iter().map(|(x, y)| (x, y, 1));
+    slits
+        .chain(water)
         .map(|(x, y, h)| rect(x as f32, y as f32, 1.0, h as f32, Pal::Yellow, z::FIELD))
         .collect()
 }
@@ -421,6 +514,46 @@ mod tests {
                 assert_eq!(canvas.get(x, row), Pal::Black);
             }
         }
+    }
+
+    #[test]
+    fn the_reflection_stays_in_the_water_and_reaches_the_top_of_the_tower() {
+        reflection_of(|_, y, _, _, _| assert!(y >= RIVER_Y && y < VIEW_H as i32));
+        let tower_top = CHURCH_BASE - TOWER_H - 1;
+        let farthest = CHURCH_BASE - (REFLECTION_ROWS - 1) * 4 / REFLECTION_STRETCH;
+        assert!(farthest <= tower_top);
+    }
+
+    #[test]
+    fn the_reflection_thins_with_distance_from_the_shore() {
+        let lit = |rows: i32| {
+            let share = reflection_share(rows);
+            (0..16)
+                .flat_map(|y| (0..16).map(move |x| (x, y)))
+                .filter(|(x, y)| dither_on(*x, *y, share))
+                .count()
+        };
+        assert_eq!(lit(0), 256);
+        assert!(lit(REFLECTION_ROWS - 1) < lit(REFLECTION_ROWS / 2));
+        assert!(lit(REFLECTION_ROWS / 2) < lit(REFLECTION_SOLID_ROWS + 1));
+        assert!(lit(REFLECTION_ROWS - 1) > 0);
+    }
+
+    #[test]
+    fn the_reflection_is_the_church_on_the_water() {
+        let canvas = scene_canvas();
+        let stone_in_water = (RIVER_Y..RIVER_Y + REFLECTION_ROWS)
+            .flat_map(|y| (CHURCH_X - 6..CHURCH_X + 40).map(move |x| (x, y)))
+            .filter(|(x, y)| canvas.get(*x, *y) == STONE)
+            .count();
+        assert!(stone_in_water > 150, "{stone_in_water}");
+    }
+
+    #[test]
+    fn the_lit_belfry_shows_on_the_water() {
+        let pixels = belfry_reflection();
+        assert!(!pixels.is_empty());
+        assert!(pixels.iter().all(|(_, y)| *y >= RIVER_Y));
     }
 
     #[test]
