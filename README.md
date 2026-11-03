@@ -34,23 +34,57 @@ keys, and a tap on the game screen acts as Enter.
 
 ## Build and run
 
-You need stable Rust that supports the 2024 edition. The game is developed on
-desktop Linux, with a browser build for the web. Windows and macOS builds are
-planned but not yet supported.
+The game is developed and tested on desktop Linux. Windows and macOS should work
+the same way, but have not been tested yet. If you try one, please
+[open an issue](https://github.com/edwestfieldjr/gitchegumee/issues) to say how it went.
 
-On Arch Linux, install the system dependencies:
+You need Rust 1.97.1 or newer. If you already have Rust, run `rustup update`.
+
+### 1. Install Rust and the system dependencies
+
+**Windows:** download and run `rustup-init.exe` from
+[rustup.rs](https://rustup.rs/). If it offers to install the Visual Studio build
+tools, accept.
+
+**macOS:** in Terminal, install the Apple command line tools, then Rust:
 
 ```sh
-sudo pacman -S --needed alsa-lib systemd-libs vulkan-icd-loader pkgconf
+xcode-select --install
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
-Then clone the repository and run the game:
+**Linux:** install Rust with the same `curl` command, then your distribution's
+packages:
+
+```sh
+# Debian, Ubuntu, Mint, Pop!_OS
+sudo apt install g++ pkg-config libx11-dev libasound2-dev libudev-dev libxkbcommon-x11-0 libwayland-dev libxkbcommon-dev
+
+# Fedora
+sudo dnf install gcc-c++ libX11-devel alsa-lib-devel systemd-devel wayland-devel libxkbcommon-devel
+
+# Arch, Manjaro
+sudo pacman -S --needed alsa-lib systemd-libs vulkan-icd-loader pkgconf
+
+# openSUSE
+sudo zypper install libudev-devel gcc-c++ alsa-lib-devel
+```
+
+For other distributions, see Bevy's
+[Linux dependencies](https://github.com/bevyengine/bevy/blob/main/docs/linux_dependencies.md).
+
+### 2. Get the game and run it
+
+These commands are the same on every system. On Windows, use PowerShell.
 
 ```sh
 git clone https://github.com/edwestfieldjr/gitchegumee.git
 cd gitchegumee
 cargo run --release
 ```
+
+No Git? [Download the ZIP](https://github.com/edwestfieldjr/gitchegumee/archive/refs/heads/main.zip),
+unpack it, open a terminal in that folder, and run `cargo run --release`.
 
 The first build compiles [Bevy](https://bevyengine.org/) and takes a while.
 
