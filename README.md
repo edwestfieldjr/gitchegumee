@@ -1,4 +1,6 @@
-# Gitche Gumee: The Last Voyage of the Edmund Fitzgerald
+# Gitche Gumee
+
+### The Last Voyage of the Edmund Fitzgerald
 
 A retro, Atari-style game about the last voyage of the SS *Edmund Fitzgerald*
 across Lake Superior, November 9–10, 1975.
@@ -28,7 +30,7 @@ ship. There is no score and there are no saves: each voyage lasts one sitting.
 ## Controls
 
 | Screen | Keys |
-|---|---|
+| --- | --- |
 | Menus and text | Up/Down to choose, Space or Enter to confirm. A press finishes typing text, and the next one moves on. |
 | Port | Left/Right changes a setting. |
 | Chart | Up/Down for speed, 1–6 for pumps, R to repair, Space or Enter to go. |
