@@ -5,8 +5,8 @@ across Lake Superior, November 9–10, 1975.
 
 The *Fitzgerald* sank in a severe storm on November 10, 1975, with the loss of
 all 29 men aboard. No bodies were recovered, and the cause of the sinking is
-still unknown. This game is meant as a memorial. It uses fictional crew names
-and roles, and it doesn't present any one theory as fact.
+still unknown. This game is meant as a memorial. It refers to the crew by role
+rather than by name, and it doesn't present any one theory as fact.
 
 **[Play it and read more at westfield.dev/gitchegumee](https://westfield.dev/gitchegumee/)**
 
