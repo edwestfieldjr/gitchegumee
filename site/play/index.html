@@ -86,7 +86,7 @@
 <div id="intro">
   <h1>Gitche Gumee</h1>
   <img src="../img/freighter.png" width="384" height="120" alt="">
-  <p><span class="keyboard-only">Needs a keyboard and a browser with WebGL2.</span><span class="touch-only">Use the on-screen buttons. Works either way up. Turn off silent mode to hear it.</span> The game has sound.</p>
+  <p><span class="keyboard-only">Needs a keyboard and a browser with WebGL2.</span><span class="touch-only">Tap the game screen to move on, and use the on-screen buttons for the rest. Works either way up. Turn off silent mode to hear it.</span> The game has sound.</p>
   <button id="start" type="button">Start the voyage</button>
   <p id="error" role="alert" hidden></p>
   <a href="../">Back to the site</a>
@@ -114,13 +114,13 @@
   addEventListener("touchend", wakeAudio, true);
 
   // On-screen buttons send the game the same key events as a keyboard.
-  const send = (type, button) => canvas.dispatchEvent(new KeyboardEvent(type, {
-    key: button.dataset.key, code: button.dataset.code, bubbles: true, cancelable: true,
+  const send = (type, { key, code }) => canvas.dispatchEvent(new KeyboardEvent(type, {
+    key, code, bubbles: true, cancelable: true,
   }));
   function release(button) {
     if (!button.hasAttribute("data-held")) return;
     button.removeAttribute("data-held");
-    send("keyup", button);
+    send("keyup", button.dataset);
   }
   const buttons = [...controls.querySelectorAll("button")];
   for (const button of buttons) {
@@ -129,7 +129,7 @@
       button.setPointerCapture(event.pointerId);
       if (button.hasAttribute("data-held")) return;
       button.setAttribute("data-held", "");
-      send("keydown", button);
+      send("keydown", button.dataset);
     });
     for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) {
       button.addEventListener(type, () => release(button));
@@ -147,6 +147,22 @@
     controls.hidden = false;
     document.addEventListener("touchmove", (event) => event.preventDefault(), { passive: false });
     document.addEventListener("gesturestart", (event) => event.preventDefault());
+
+    // A tap on the game picture is Enter. Only the picture, so that a thumb
+    // missing a pump button can't give the order to sail.
+    const enter = { key: "Enter", code: "Enter" };
+    const taps = new Set();
+    const stage = document.getElementById("stage");
+    stage.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      if (taps.size === 0) send("keydown", enter);
+      taps.add(event.pointerId);
+    });
+    for (const type of ["pointerup", "pointercancel"]) {
+      stage.addEventListener(type, (event) => {
+        if (taps.delete(event.pointerId) && taps.size === 0) send("keyup", enter);
+      });
+    }
   }
 
   // Starting from a click lets the browser play the game's sound.

@@ -35,7 +35,7 @@ ship. There is no score and there are no saves: each voyage lasts one sitting.
 | Helm | Left/Right or A/D to steer, Up/Down for speed. |
 
 In the browser on a phone or tablet, on-screen buttons take the place of the
-keys.
+keys, and a tap on the game screen acts as Enter.
 
 ## Build and run
 
