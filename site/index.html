@@ -60,7 +60,7 @@
 
   .shots { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); gap: 1.5rem; }
   figure { margin: 0; }
-  figure img { width: 100%; height: auto; aspect-ratio: 8 / 5; object-fit: contain; object-position: top; background: var(--night); border: 2px solid var(--slate); }
+  figure img { image-rendering: auto; width: 100%; height: auto; aspect-ratio: 8 / 5; object-fit: contain; object-position: top; background: var(--night); border: 2px solid var(--slate); }
   figcaption { color: var(--gray); font-size: .9rem; margin-top: .5rem; }
 
   table { width: 100%; border-collapse: collapse; }
@@ -117,19 +117,19 @@
     <h2>From the game</h2>
     <div class="shots">
       <figure>
-        <img src="img/port.png" width="320" height="200" loading="lazy" alt="Port screen for Superior, Wisconsin, with settings for hatch clamps and route.">
+        <img src="img/port.png" width="960" height="600" loading="lazy" alt="Port screen for Superior, Wisconsin, with settings for hatch clamps and route.">
         <figcaption>Before sailing: how many hatch clamps to secure, and which route to take.</figcaption>
       </figure>
       <figure>
-        <img src="img/chart.png" width="320" height="200" loading="lazy" alt="Chart of Lake Superior with the ship's route, gauges and a radio log.">
+        <img src="img/chart.png" width="960" height="600" loading="lazy" alt="Chart of Lake Superior with the ship's route, gauges and a radio log.">
         <figcaption>The chart: position, ship's condition and the radio log.</figcaption>
       </figure>
       <figure>
-        <img src="img/helm.png" width="320" height="200" loading="lazy" alt="Top-down view of the freighter steering between breaking waves, reefs and floating debris in snow.">
+        <img src="img/helm.png" width="960" height="600" loading="lazy" alt="Top-down view of the freighter steering between breaking waves, reefs and floating debris in snow.">
         <figcaption>The helm: find the gaps in the breakers, and keep clear of shoals and debris.</figcaption>
       </figure>
       <figure>
-        <img src="img/event.png" width="320" height="200" loading="lazy" alt="Text panel with a gale warning on the radio and two orders to choose from.">
+        <img src="img/event.png" width="960" height="600" loading="lazy" alt="Text panel with a gale warning on the radio and two orders to choose from.">
         <figcaption>Events: text panels in the style of an 8-bit adventure game.</figcaption>
       </figure>
     </div>
