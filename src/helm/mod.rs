@@ -273,13 +273,13 @@ fn enter_helm(
         (HudText::Radar, RADAR_X + 5.0, RADAR_Y + 25.0, Pal::Red),
         (HudText::GuideName, SIDE_X, 135.0, Pal::Gray),
         (HudText::GuideCall, SIDE_X, 144.0, Pal::Yellow),
-        (HudText::Beacon, SIDE_X, 158.0, Pal::Amber),
+        (HudText::Beacon, SIDE_X, 152.0, Pal::Amber),
         (HudText::Notice, 80.0, 24.0, Pal::Yellow),
     ] {
         commands.spawn((label("", x, y, color), HudLabel(kind), scope.clone()));
     }
-    commands.spawn((label("L/R STEER", SIDE_X, 178.0, Pal::Gray), scope.clone()));
-    commands.spawn((label("U/D SPEED", SIDE_X, 187.0, Pal::Gray), scope.clone()));
+    commands.spawn((label("L/R STEER", SIDE_X, 160.0, Pal::Gray), scope.clone()));
+    commands.spawn((label("U/D SPEED", SIDE_X, 168.0, Pal::Gray), scope.clone()));
     let width = section.title.len() as f32 * 6.0 + 12.0;
     let x = ((FIELD_W - width) / 2.0).floor();
     commands.spawn((

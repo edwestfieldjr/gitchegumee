@@ -47,8 +47,11 @@ fn spawn_blinds(mut commands: Commands) {
     }
 }
 
+/// The blinds keep opening during a pause, so they never freeze over the screen.
 fn run_wipe(
     time: Res<Time>,
+    virt: Res<Time<Virtual>>,
+    real: Res<Time<Real>>,
     state: Res<State<GameState>>,
     mut clock: Local<f32>,
     mut blinds: Query<(&Blind, &mut Transform, &mut Visibility)>,
@@ -56,7 +59,11 @@ fn run_wipe(
     if state.is_changed() {
         *clock = 0.0;
     }
-    *clock += time.delta_secs();
+    *clock += if virt.is_paused() {
+        real.delta_secs() * virt.relative_speed()
+    } else {
+        time.delta_secs()
+    };
     let height = blind_height(*clock);
     for (blind, mut transform, mut visibility) in &mut blinds {
         *visibility = if height > 0.0 {

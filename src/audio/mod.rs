@@ -3,7 +3,10 @@
 use bevy::audio::Volume;
 use bevy::prelude::*;
 
-use crate::states::{GameState, UnderWay};
+use crate::states::{GameState, PauseState, UnderWay};
+use crate::ui::Label;
+use crate::ui::palette::Pal;
+use crate::ui::pause::MuteHint;
 use crate::weather::Weather;
 
 const TITLE_VOLUME: f32 = 0.6;
@@ -49,6 +52,11 @@ enum LayerKind {
 #[derive(Component)]
 struct MusicLayer(LayerKind);
 
+/// Whether the player has turned the sound off. It lasts until they turn it
+/// back on, across every screen.
+#[derive(Resource, Debug, Default, PartialEq, Eq)]
+pub struct Muted(pub bool);
+
 /// Target volume of a layer at a storm strength from 0 to 1. The calm tune
 /// gives way to the driving layer, and the wind comes in over the top.
 fn layer_volume(kind: LayerKind, storm: f32) -> f32 {
@@ -60,15 +68,18 @@ fn layer_volume(kind: LayerKind, storm: f32) -> f32 {
     }
 }
 
-fn start_title_music(mut commands: Commands, server: Res<AssetServer>) {
+fn start_title_music(mut commands: Commands, server: Res<AssetServer>, muted: Res<Muted>) {
     commands.spawn((
         AudioPlayer::new(server.load("audio/title_theme.ogg")),
-        PlaybackSettings::LOOP.with_volume(Volume::Linear(TITLE_VOLUME)),
+        PlaybackSettings {
+            muted: muted.0,
+            ..PlaybackSettings::LOOP.with_volume(Volume::Linear(TITLE_VOLUME))
+        },
         DespawnOnExit(GameState::Title),
     ));
 }
 
-fn start_layers(mut commands: Commands, server: Res<AssetServer>) {
+fn start_layers(mut commands: Commands, server: Res<AssetServer>, muted: Res<Muted>) {
     for (kind, path) in [
         (LayerKind::Calm, "audio/music_calm.ogg"),
         (LayerKind::Storm, "audio/music_storm.ogg"),
@@ -77,7 +88,10 @@ fn start_layers(mut commands: Commands, server: Res<AssetServer>) {
         commands.spawn((
             MusicLayer(kind),
             AudioPlayer::new(server.load(path)),
-            PlaybackSettings::LOOP.with_volume(Volume::Linear(0.0)),
+            PlaybackSettings {
+                muted: muted.0,
+                ..PlaybackSettings::LOOP.with_volume(Volume::Linear(0.0))
+            },
             DespawnOnExit(UnderWay),
         ));
     }
@@ -97,12 +111,69 @@ fn follow_storm(
     }
 }
 
-fn play_sfx(mut commands: Commands, server: Res<AssetServer>, mut sfx: MessageReader<Sfx>) {
+fn hush_for_pause(sinks: Query<&AudioSink>) {
+    for sink in &sinks {
+        sink.pause();
+    }
+}
+
+fn resume_after_pause(sinks: Query<&AudioSink>) {
+    for sink in &sinks {
+        sink.play();
+    }
+}
+
+fn play_sfx(
+    mut commands: Commands,
+    server: Res<AssetServer>,
+    muted: Res<Muted>,
+    mut sfx: MessageReader<Sfx>,
+) {
     for effect in sfx.read() {
         commands.spawn((
             AudioPlayer::new(server.load(effect.path())),
-            PlaybackSettings::DESPAWN.with_volume(Volume::Linear(SFX_VOLUME)),
+            PlaybackSettings {
+                muted: muted.0,
+                ..PlaybackSettings::DESPAWN.with_volume(Volume::Linear(SFX_VOLUME))
+            },
         ));
+    }
+}
+
+fn mute_input(keys: Res<ButtonInput<KeyCode>>, mut muted: ResMut<Muted>) {
+    if keys.just_pressed(KeyCode::KeyM) {
+        muted.0 = !muted.0;
+    }
+}
+
+/// A muted sink keeps track of volume changes, so the storm's fades carry on
+/// silently and the music comes back at the right level.
+fn apply_mute(muted: Res<Muted>, mut sinks: Query<&mut AudioSink>) {
+    for mut sink in &mut sinks {
+        if sink.is_muted() != muted.0 {
+            if muted.0 {
+                sink.mute();
+            } else {
+                sink.unmute();
+            }
+        }
+    }
+}
+
+/// The hint's words and color for whether the sound is off.
+fn mute_hint(muted: bool) -> (&'static str, Pal) {
+    if muted {
+        ("M MUTED", Pal::Amber)
+    } else {
+        ("M MUTE", Pal::Gray)
+    }
+}
+
+fn show_mute_hint(muted: Res<Muted>, mut hint: Single<&mut Label, With<MuteHint>>) {
+    let (text, color) = mute_hint(muted.0);
+    hint.set(text);
+    if hint.color != color {
+        hint.color = color;
     }
 }
 
@@ -111,15 +182,58 @@ pub struct AudioGamePlugin;
 impl Plugin for AudioGamePlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<Sfx>()
+            .init_resource::<Muted>()
             .add_systems(OnEnter(GameState::Title), start_title_music)
             .add_systems(OnEnter(UnderWay), start_layers)
-            .add_systems(Update, (play_sfx, follow_storm.run_if(in_state(UnderWay))));
+            .add_systems(OnEnter(PauseState::Paused), hush_for_pause)
+            .add_systems(OnExit(PauseState::Paused), resume_after_pause)
+            .add_systems(
+                Update,
+                (
+                    (mute_input, play_sfx, apply_mute, show_mute_hint).chain(),
+                    follow_storm.run_if(in_state(UnderWay)),
+                ),
+            );
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_mute_key_turns_the_sound_off_and_on() {
+        let mut app = App::new();
+        app.init_resource::<ButtonInput<KeyCode>>()
+            .init_resource::<Muted>()
+            .add_systems(Update, mute_input);
+        let press = |app: &mut App| {
+            let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+            keys.release(KeyCode::KeyM);
+            keys.clear();
+            keys.press(KeyCode::KeyM);
+            app.update();
+        };
+
+        assert_eq!(*app.world().resource::<Muted>(), Muted(false));
+        press(&mut app);
+        assert_eq!(*app.world().resource::<Muted>(), Muted(true));
+        // Holding the key doesn't flip it back. Bevy's input system clears
+        // "just pressed" each frame, and it isn't running in this test.
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .clear();
+        app.update();
+        assert_eq!(*app.world().resource::<Muted>(), Muted(true));
+        press(&mut app);
+        assert_eq!(*app.world().resource::<Muted>(), Muted(false));
+    }
+
+    #[test]
+    fn the_hint_shows_when_the_sound_is_off() {
+        assert_eq!(mute_hint(false), ("M MUTE", Pal::Gray));
+        assert_eq!(mute_hint(true), ("M MUTED", Pal::Amber));
+    }
 
     #[test]
     fn calm_water_plays_only_the_calm_tune() {

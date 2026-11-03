@@ -16,7 +16,7 @@ use crate::weather::{Weather, compass_point};
 const MAP_Y: f32 = 10.0;
 const SIDE_X: f32 = 228.0;
 const LOG_Y: f32 = 133.0;
-const LOG_ROWS: usize = 6;
+const LOG_ROWS: usize = 5;
 const PATH_DOT_NM: f32 = 7.0;
 /// Miles the Anderson drops astern by the time she loses sight of the ship.
 const ANDERSON_MAX_LAG_NM: f32 = 14.0;
@@ -75,7 +75,7 @@ fn hint_text(proceeding: bool) -> &'static str {
     if proceeding {
         "UNDER WAY"
     } else {
-        "UP/DN SPEED  1-6 PUMPS  R REPAIR  SPACE/ENTER: GO"
+        "UP/DN SPEED 1-6 PUMPS R REPAIR ENTER: GO"
     }
 }
 

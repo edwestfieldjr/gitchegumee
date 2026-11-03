@@ -63,12 +63,7 @@ fn enter_port(mut commands: Commands) {
         ));
     }
     commands.spawn((
-        centered(
-            "UP/DOWN SELECT   LEFT/RIGHT CHANGE   ENTER",
-            182.0,
-            Pal::Gray,
-            1.0,
-        ),
+        centered("UP/DN SELECT  L/R CHANGE  ENTER", 182.0, Pal::Gray, 1.0),
         scope,
     ));
 }

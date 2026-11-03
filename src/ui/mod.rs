@@ -2,6 +2,7 @@
 
 pub mod font;
 pub mod palette;
+pub mod pause;
 pub mod typing;
 pub mod wipe;
 
@@ -289,7 +290,7 @@ impl Plugin for UiPlugin {
         app.world_mut()
             .resource_mut::<MainScheduleOrder>()
             .insert_after(Update, DrawLabels);
-        app.add_plugins((typing::TypingPlugin, wipe::WipePlugin));
+        app.add_plugins((typing::TypingPlugin, wipe::WipePlugin, pause::PausePlugin));
         app.insert_resource(FontImage(font))
             .add_systems(Startup, setup_view)
             .add_systems(Update, fit_view)

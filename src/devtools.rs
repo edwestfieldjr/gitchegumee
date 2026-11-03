@@ -15,6 +15,7 @@ use bevy::render::view::screenshot::{Screenshot, save_to_disk};
 use crate::content::{At, Content};
 use crate::events::ActiveEvent;
 use crate::states::{GameState, MemorialPhase};
+use crate::ui::pause::PauseKeys;
 use crate::voyage::Ending;
 use crate::voyage::route::LatLon;
 
@@ -246,7 +247,7 @@ pub struct DevToolsPlugin;
 impl Plugin for DevToolsPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(OnEnter(GameState::Title), set_speed)
-            .add_systems(PreUpdate, autoplay.after(InputSystems))
+            .add_systems(PreUpdate, autoplay.after(InputSystems).before(PauseKeys))
             .add_systems(Update, (timed_shot, key_shot, state_shots));
     }
 }

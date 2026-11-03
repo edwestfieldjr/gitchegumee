@@ -24,6 +24,15 @@ pub enum EventPhase {
     Result,
 }
 
+/// Whether the game is running or paused. It applies on every screen, so it is
+/// a state of its own and not a phase of one screen.
+#[derive(States, Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum PauseState {
+    #[default]
+    Running,
+    Paused,
+}
+
 /// Parts of the memorial: the words, then the bell.
 #[derive(SubStates, Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 #[source(GameState = GameState::Memorial)]
@@ -54,6 +63,7 @@ pub struct StatesPlugin;
 impl Plugin for StatesPlugin {
     fn build(&self, app: &mut App) {
         app.init_state::<GameState>()
+            .init_state::<PauseState>()
             .add_sub_state::<EventPhase>()
             .add_sub_state::<MemorialPhase>()
             .add_computed_state::<UnderWay>()

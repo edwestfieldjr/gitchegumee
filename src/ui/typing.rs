@@ -98,6 +98,7 @@ pub fn enter_may_advance(typed: &Query<&Typed>, finish: &mut MessageWriter<Finis
 fn advance_typing(
     time: Res<Time>,
     real: Res<Time<Real>>,
+    virt: Res<Time<Virtual>>,
     mut finish: MessageReader<FinishTyping>,
     mut typed: Query<(&mut Typed, &mut Label)>,
 ) {
@@ -108,7 +109,7 @@ fn advance_typing(
         } else if !line.finished() {
             line.elapsed += time.delta_secs();
         }
-        if line.finished() {
+        if line.finished() && !virt.is_paused() {
             line.held += real.delta_secs();
         }
         let shown: String = line.full.chars().take(line.shown_chars()).collect();

@@ -23,6 +23,11 @@ changed this file. `CLAUDE.md` itself has changed in one line: the title.
 | Shorter sinking scene | The closing sequence for the loss takes about 15 real seconds, down from about 98. It slows for the "gone from radar" line, which stays up for about 3 seconds. The survival ending is unchanged. |
 | Touch controls for phones | The browser version shows a D-pad, ENTER, pumps and repair on touch screens, in either orientation. They send the game the same key events as a keyboard. A tap on the game picture acts as Enter. |
 | Open-source license | MIT, in `LICENSE`. |
+| Pause during helm sections | Pause works on every screen. P or Esc pauses and P, Esc, Space or Enter resumes. Game time, the simulation and sound all stop, under a PAUSED panel. Touch screens get a PAUSE button. |
+| P and M always on screen | `P PAUSE` and `M MUTE` show in the bottom right corner of every screen. To make room, the chart keeps 5 radio log rows instead of 6, and some hint lines moved or got shorter. |
+| Mute button | M mutes or unmutes on any screen, and the hint turns to an amber `M MUTED` while muted. Touch screens get a MUTE button. It lasts until the game is closed. |
+| It's Whitefish Point | The route's last waypoint sits at the tip of Whitefish Point, so it and the chart's distance readout now say so. Radio traffic and endings still say Whitefish Bay, where the shelter is. |
+| The St. Marys River was missing | The chart now shows it running from Whitefish Bay past the Soo Locks and off the map's east edge, from a new `rivers` list in `chart.ron`. That corner of the lake was retraced as original art from the geography on a nautical chart. |
 | Time to read, without long delays | Text stays up until a key press moves on, with a 0.5-second guard against double presses. Space does what Enter does on every screen that advances. |
 | Less time staring at the map | The chart's clock now waits for speed and pump orders, then Space or Enter runs to the next race in a few real seconds at most. The time still passes in the simulation, events still fire, and the chart stops again after each race. |
 | Only half the screen wiped | The blinds were centered on the left edge. They now span the view. |

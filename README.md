@@ -27,6 +27,7 @@ ship. There is no score and there are no saves: each voyage lasts one sitting.
 | Port | Left/Right changes a setting. |
 | Chart | Up/Down for speed, 1–6 for pumps, R to repair, Space or Enter to go. |
 | Helm | Left/Right or A/D to steer, Up/Down for speed. |
+| Any screen | P or Esc to pause or resume (Space or Enter also resumes). M to mute or unmute. |
 
 In the browser on a phone or tablet, on-screen buttons take the place of the
 keys, and a tap on the game screen acts as Enter.
