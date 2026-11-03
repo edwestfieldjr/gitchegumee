@@ -28,6 +28,10 @@ const DESCENT_AT: f32 = 26.0;
 const WRECK_AT: f32 = 35.0;
 /// When the closing sequence is over and the words come up.
 pub const CLOSING_SECONDS: f32 = 43.0;
+/// How much faster than the rest of the game the sequence plays. At a `pace` of
+/// 0.4375 this makes about 15 real seconds, with 3 of them on the caption.
+const SINKING_SPEED: f32 = 7.5;
+const CAPTION_SPEED: f32 = 2.67;
 /// Seconds before Enter may skip the sequence.
 pub const SKIP_AFTER: f32 = 4.0;
 
@@ -130,6 +134,16 @@ pub fn light_is_on(out_at: f32, t: f32) -> bool {
     // The gaps lengthen as the light fails.
     let left = (out_at - t) / FLICKER;
     (t * 11.0).sin() + left * 1.4 > 0.0
+}
+
+/// How fast the sequence runs at time `t`. It eases off so that the line over
+/// the empty sea can be read.
+pub fn sinking_speed(t: f32) -> f32 {
+    if (GONE_TEXT_AT..BLACK_AT).contains(&t) {
+        CAPTION_SPEED
+    } else {
+        SINKING_SPEED
+    }
 }
 
 /// Height of the sea above the waterline, at a column and a time.

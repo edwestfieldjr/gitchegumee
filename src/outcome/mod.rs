@@ -27,8 +27,6 @@ const CREW: u32 = 29;
 const TOLL_SECONDS: f32 = 2.5;
 /// How long the belfry stays lit after each stroke.
 const BELFRY_LIT_SECONDS: f32 = 0.8;
-/// How much faster than the rest of the game the sinking sequence plays.
-const SINKING_SPEED: f32 = 2.0;
 
 #[derive(Resource, Default)]
 pub(crate) struct OutcomeClock(f32);
@@ -83,7 +81,7 @@ fn outcome_timeline(
     let speed = if ending.reached_bay {
         1.0
     } else {
-        SINKING_SPEED
+        closing::sinking_speed(before)
     };
     clock.0 += time.delta_secs() * speed;
     if before < words_at && before >= SKIP_AFTER && advance_pressed(&keys) {
@@ -280,9 +278,15 @@ mod tests {
     use crate::content::tests::real_content;
 
     #[test]
-    fn the_sinking_takes_a_minute_at_most() {
+    fn the_sinking_takes_about_fifteen_real_seconds() {
         let pace = real_content().balance.pace;
-        assert!(CLOSING_SECONDS / SINKING_SPEED / pace <= 60.0);
+        let step = 1.0 / 60.0;
+        let (mut t, mut real) = (0.0, 0.0);
+        while t < CLOSING_SECONDS {
+            t += step * pace * closing::sinking_speed(t);
+            real += step;
+        }
+        assert!((14.5..=15.5).contains(&real), "{real} seconds");
     }
 
     #[test]
