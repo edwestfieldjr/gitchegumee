@@ -52,6 +52,9 @@ const FATIGUE_RUDDER_LOSS: f32 = 1.0 / 160.0;
 /// Scroll multiplier for each speed order.
 const SLOW_SCROLL: f32 = 0.75;
 const FULL_SCROLL: f32 = 2.275;
+/// How much faster the game runs while skipping ahead. At a `helm_pace` of 0.5775
+/// the longest section takes about 6.5 real seconds, down from about 78.
+const SKIP_SPEED: f32 = 12.0;
 
 #[derive(Resource)]
 struct HelmRun {
@@ -64,6 +67,10 @@ struct HelmRun {
     last_shifts: u32,
     shift_notice: f32,
 }
+
+/// Whether the player is skipping ahead through this section.
+#[derive(Resource, Default)]
+struct Skipping(bool);
 
 /// Left and right, read in `Update` and consumed by the fixed step.
 #[derive(Resource, Default)]
@@ -116,6 +123,7 @@ enum HudText {
     GuideCall,
     Beacon,
     Notice,
+    Skip,
 }
 
 #[derive(Component)]
@@ -278,15 +286,17 @@ fn enter_helm(
         (HudText::List, SIDE_X, 46.0, Pal::White),
         (HudText::Speed, SIDE_X, 123.0, Pal::White),
         (HudText::Radar, RADAR_X + 5.0, RADAR_Y + 25.0, Pal::Red),
-        (HudText::GuideName, SIDE_X, 135.0, Pal::Gray),
-        (HudText::GuideCall, SIDE_X, 144.0, Pal::Yellow),
-        (HudText::Beacon, SIDE_X, 152.0, Pal::Amber),
+        (HudText::GuideName, SIDE_X, 131.0, Pal::Gray),
+        (HudText::GuideCall, SIDE_X, 139.0, Pal::Yellow),
+        (HudText::Beacon, SIDE_X, 147.0, Pal::Amber),
         (HudText::Notice, 80.0, 24.0, Pal::Yellow),
+        (HudText::Skip, 26.0, 12.0, Pal::Yellow),
     ] {
         commands.spawn((label("", x, y, color), HudLabel(kind), scope.clone()));
     }
-    commands.spawn((label("L/R STEER", SIDE_X, 160.0, Pal::Gray), scope.clone()));
-    commands.spawn((label("U/D SPEED", SIDE_X, 168.0, Pal::Gray), scope.clone()));
+    commands.spawn((label("L/R STEER", SIDE_X, 155.0, Pal::Gray), scope.clone()));
+    commands.spawn((label("U/D SPEED", SIDE_X, 163.0, Pal::Gray), scope.clone()));
+    commands.spawn((label("N SKIP", SIDE_X, 170.0, Pal::Gray), scope.clone()));
     let width = section.title.len() as f32 * 6.0 + 12.0;
     let x = ((FIELD_W - width) / 2.0).floor();
     commands.spawn((
@@ -336,6 +346,33 @@ fn helm_input(
             SpeedOrder::Cruise | SpeedOrder::Slow => SpeedOrder::Slow,
         };
         effects.write(ApplyEffect(Effect::Speed(slower)));
+    }
+}
+
+/// Run the section faster, or back at its own speed. Everything still happens:
+/// the clock, the ship and the hazards only run through sooner, and seas the
+/// player doesn't steer around still strike. So skipping can't dodge the storm.
+fn skip_input(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut skipping: ResMut<Skipping>,
+    mut time: ResMut<Time<Virtual>>,
+) {
+    if keys.just_pressed(KeyCode::KeyN) {
+        skipping.0 = !skipping.0;
+        let speed = time.relative_speed();
+        time.set_relative_speed(if skipping.0 {
+            speed * SKIP_SPEED
+        } else {
+            speed / SKIP_SPEED
+        });
+    }
+}
+
+/// The next screen must not inherit the skip.
+fn end_skip(mut skipping: ResMut<Skipping>, mut time: ResMut<Time<Virtual>>) {
+    if std::mem::take(&mut skipping.0) {
+        let speed = time.relative_speed();
+        time.set_relative_speed(speed / SKIP_SPEED);
     }
 }
 
@@ -628,6 +665,7 @@ fn draw_hud(
     mut run: ResMut<HelmRun>,
     ship: Res<Ship>,
     voyage: Res<Voyage>,
+    skipping: Res<Skipping>,
     mut labels: Query<(&HudLabel, &mut Label), Without<HitNotice>>,
     mut bars: Query<(&HelmBar, &mut Bar)>,
     mut banner: Query<&mut Visibility, With<Banner>>,
@@ -674,6 +712,13 @@ fn draw_hud(
             HudText::Beacon => {
                 if run.section.beacon_dark {
                     "BEACON OFF".to_string()
+                } else {
+                    String::new()
+                }
+            }
+            HudText::Skip => {
+                if skipping.0 {
+                    "SKIPPING AHEAD   N: TAKE THE HELM".to_string()
                 } else {
                     String::new()
                 }
@@ -748,8 +793,12 @@ pub struct HelmPlugin;
 
 impl Plugin for HelmPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(GameState::Helm), (speed_up_for_helm, enter_helm))
-            .add_systems(OnExit(GameState::Helm), restore_game_speed)
+        app.init_resource::<Skipping>()
+            .add_systems(OnEnter(GameState::Helm), (speed_up_for_helm, enter_helm))
+            .add_systems(
+                OnExit(GameState::Helm),
+                (end_skip, restore_game_speed).chain(),
+            )
             .add_systems(
                 FixedUpdate,
                 (
@@ -762,6 +811,7 @@ impl Plugin for HelmPlugin {
                 Update,
                 (
                     helm_input,
+                    skip_input,
                     spawn_hazards,
                     draw_field,
                     draw_snow,
@@ -810,6 +860,65 @@ mod tests {
         assert_eq!(guide_call(100.0, Some(160.0)), "COME RIGHT");
         assert_eq!(guide_call(100.0, Some(105.0)), "STEADY");
         assert_eq!(guide_call(100.0, None), "");
+    }
+
+    fn skip_app() -> App {
+        let mut app = App::new();
+        app.init_resource::<ButtonInput<KeyCode>>()
+            .init_resource::<Time<Virtual>>()
+            .init_resource::<Skipping>()
+            .add_systems(Update, skip_input);
+        app.world_mut()
+            .resource_mut::<Time<Virtual>>()
+            .set_relative_speed(0.5);
+        app
+    }
+
+    fn press_skip(app: &mut App) {
+        app.world_mut()
+            .resource_mut::<ButtonInput<KeyCode>>()
+            .press(KeyCode::KeyN);
+        app.update();
+        let mut keys = app.world_mut().resource_mut::<ButtonInput<KeyCode>>();
+        keys.release(KeyCode::KeyN);
+        keys.clear();
+    }
+
+    fn game_speed(app: &App) -> f32 {
+        app.world().resource::<Time<Virtual>>().relative_speed()
+    }
+
+    #[test]
+    fn the_skip_key_speeds_the_section_up_and_back_down() {
+        let mut app = skip_app();
+        press_skip(&mut app);
+        assert_eq!(game_speed(&app), 0.5 * SKIP_SPEED);
+        press_skip(&mut app);
+        assert_eq!(game_speed(&app), 0.5);
+    }
+
+    #[test]
+    fn leaving_the_helm_ends_a_skip() {
+        let mut app = skip_app();
+        press_skip(&mut app);
+        app.world_mut().run_system_cached(end_skip).unwrap();
+        assert_eq!(game_speed(&app), 0.5);
+        assert!(!app.world().resource::<Skipping>().0);
+        // With no skip running, leaving changes nothing.
+        app.world_mut().run_system_cached(end_skip).unwrap();
+        assert_eq!(game_speed(&app), 0.5);
+    }
+
+    #[test]
+    fn a_skip_shortens_the_longest_section_to_a_few_seconds() {
+        let content = crate::content::tests::real_content();
+        let longest = content
+            .helm
+            .iter()
+            .map(|section| section.seconds)
+            .fold(0.0, f32::max);
+        let real_seconds = longest / (content.balance.helm_pace * SKIP_SPEED);
+        assert!((3.0..=10.0).contains(&real_seconds), "{real_seconds}");
     }
 
     #[test]
