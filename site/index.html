@@ -166,31 +166,7 @@
   <section>
     <h2>Play it</h2>
     <p><a href="play/">Play in your browser</a> with a keyboard, or on a phone or tablet with on-screen buttons. The download is about 10 MB, so the first load takes a moment.</p>
-    <h3>Run it on your computer</h3>
-    <p>The game is developed and tested on Linux. Windows and macOS should work the same way, but have not been tested yet. You need Rust 1.97.1 or newer; if you already have Rust, run <code>rustup update</code>.</p>
-    <p><strong>Windows:</strong> download and run <code>rustup-init.exe</code> from <a href="https://rustup.rs/">rustup.rs</a>. If it offers to install the Visual Studio build tools, accept.</p>
-    <p><strong>macOS:</strong> in Terminal, install the Apple command line tools, then Rust:</p>
-    <pre><code>xcode-select --install
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh</code></pre>
-    <p><strong>Linux:</strong> install Rust with the same <code>curl</code> command, then your distribution's packages:</p>
-    <pre><code># Debian, Ubuntu, Mint, Pop!_OS
-sudo apt install g++ pkg-config libx11-dev libasound2-dev libudev-dev libxkbcommon-x11-0 libwayland-dev libxkbcommon-dev
-
-# Fedora
-sudo dnf install gcc-c++ libX11-devel alsa-lib-devel systemd-devel wayland-devel libxkbcommon-devel
-
-# Arch, Manjaro
-sudo pacman -S --needed alsa-lib systemd-libs vulkan-icd-loader pkgconf
-
-# openSUSE
-sudo zypper install libudev-devel gcc-c++ alsa-lib-devel</code></pre>
-    <p>For other distributions, see Bevy's <a href="https://github.com/bevyengine/bevy/blob/main/docs/linux_dependencies.md">Linux dependencies</a>.</p>
-    <p><strong>Then, on any system</strong> (on Windows, use PowerShell):</p>
-    <pre><code>git clone https://github.com/edwestfieldjr/gitchegumee.git
-cd gitchegumee
-cargo run --release</code></pre>
-    <p>No Git? <a href="https://github.com/edwestfieldjr/gitchegumee/archive/refs/heads/main.zip">Download the ZIP</a>, unpack it, open a terminal in that folder, and run <code>cargo run --release</code>.</p>
-    <p>The first build takes a while.</p>
+    <p>To run it on your computer with Rust, see the <a href="https://github.com/edwestfieldjr/gitchegumee#build-and-run">build instructions in the README</a>.</p>
   </section>
 </main>
 
