@@ -159,9 +159,6 @@ struct Tolling {
 }
 
 #[derive(Component)]
-struct TollMark(u32);
-
-#[derive(Component)]
 struct BelfryLight;
 
 fn enter_memorial_words(mut commands: Commands, content: Res<Content>) {
@@ -213,22 +210,6 @@ fn enter_memorial_bell(mut commands: Commands, content: Res<Content>, detroit: R
         ),
         scope.clone(),
     ));
-    let row_width = CREW as f32 * 8.0;
-    let left = ((320.0 - row_width) / 2.0).floor();
-    for mark in 0..CREW {
-        commands.spawn((
-            rect(
-                left + mark as f32 * 8.0 + 2.0,
-                170.0,
-                4.0,
-                6.0,
-                Pal::Slate,
-                z::HUD,
-            ),
-            TollMark(mark),
-            scope.clone(),
-        ));
-    }
     commands.spawn((centered("ENTER", 186.0, Pal::Gray, 1.0), scope));
 }
 
@@ -241,7 +222,6 @@ fn ring_bell(
     time: Res<Time>,
     keys: Res<ButtonInput<KeyCode>>,
     mut tolling: ResMut<Tolling>,
-    mut marks: Query<(&TollMark, &mut Sprite)>,
     mut lights: Query<&mut Visibility, With<BelfryLight>>,
     mut sfx: MessageWriter<Sfx>,
     mut next: ResMut<NextState<GameState>>,
@@ -252,11 +232,6 @@ fn ring_bell(
         tolling.rung = due;
         tolling.last_toll = tolling.clock;
         sfx.write(Sfx::Bell);
-        for (mark, mut sprite) in &mut marks {
-            if mark.0 < due {
-                sprite.color = Pal::Yellow.color();
-            }
-        }
     }
     let lit = tolling.clock - tolling.last_toll < BELFRY_LIT_SECONDS;
     for mut visibility in &mut lights {
