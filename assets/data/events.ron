@@ -23,6 +23,7 @@
         ],
     ),
     (id: "sykes", at: (9, 21, 0), mode: Log, title: "", body: "WILFRED SYKES IS TAKING THE NORTH SHORE TOWARD THUNDER BAY."),
+    (id: "wheel_gaps", at: (10, 0, 30), mode: Log, title: "", body: "MATE TO THE WHEEL: STEER FOR THE GAPS IN THE SEAS."),
     (
         id: "storm_hits",
         at: (10, 1, 0),
@@ -150,6 +151,7 @@
         body: "THE CHIEF ENGINEER REPORTS NUMBER FOUR PUMP IS DOWN WITH A BAD MOTOR.\n\nPRESS R ON THE VOYAGE SCREEN TO PUT A CREW ON REPAIRS.",
         effects: [PumpDown(3)],
     ),
+    (id: "wheel_logs", at: (10, 12, 30), mode: Log, title: "", body: "LOOKOUT: LOGS AND TIMBER ADRIFT. MIND THE HELM."),
     (id: "center_passes", at: (10, 12, 45), mode: Log, title: "", body: "STORM CENTER PASSING. WIND BACKING ROUND THROUGH SOUTH."),
     (
         id: "hand_line",

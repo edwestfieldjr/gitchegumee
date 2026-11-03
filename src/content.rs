@@ -188,6 +188,8 @@ pub struct HelmDef {
     pub minutes: f32,
     pub seconds: f32,
     pub title: String,
+    /// A line of advice shown under the title as the section opens.
+    pub advice: String,
     pub scroll: f32,
     pub waves: f32,
     pub logs: f32,

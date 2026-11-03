@@ -105,7 +105,7 @@ fn chart_rate(proceeding: bool, holding: bool, minutes_per_second: f32) -> f32 {
 
 fn hint_text(proceeding: bool) -> &'static str {
     if proceeding {
-        "UNDER WAY"
+        "UNDER WAY  KEEP CLEAR OF BREAKERS AND DEBRIS"
     } else {
         "UP/DN SPEED 1-6 PUMPS R REPAIR ENTER: GO"
     }
@@ -499,6 +499,14 @@ mod tests {
         let left = hold.left;
         hold.step(1, true, 0.0);
         assert_eq!(hold.left, left);
+    }
+
+    #[test]
+    fn the_hints_stop_short_of_the_pause_and_mute_keys() {
+        for proceeding in [false, true] {
+            let right = 4.0 + hint_text(proceeding).len() as f32 * 6.0;
+            assert!(right <= 270.0, "{right}");
+        }
     }
 
     #[test]

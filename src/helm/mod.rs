@@ -299,6 +299,18 @@ fn enter_helm(
         Banner,
         scope.clone(),
     ));
+    let advice_width = section.advice.len() as f32 * 6.0 + 12.0;
+    let advice_x = ((FIELD_W - advice_width) / 2.0).floor();
+    commands.spawn((
+        rect(advice_x, 94.0, advice_width, 12.0, Pal::Night, z::PANEL),
+        Banner,
+        scope.clone(),
+    ));
+    commands.spawn((
+        label(section.advice.clone(), advice_x + 6.0, 96.0, Pal::Foam),
+        Banner,
+        scope.clone(),
+    ));
     commands.spawn((label("", 84.0, 40.0, Pal::Red), HitNotice, scope));
 }
 
@@ -798,6 +810,15 @@ mod tests {
         assert_eq!(guide_call(100.0, Some(160.0)), "COME RIGHT");
         assert_eq!(guide_call(100.0, Some(105.0)), "STEADY");
         assert_eq!(guide_call(100.0, None), "");
+    }
+
+    #[test]
+    fn every_section_has_advice_that_fits_the_field() {
+        for section in &crate::content::tests::real_content().helm {
+            assert!(!section.advice.is_empty(), "{}", section.id);
+            let width = section.advice.len() as f32 * 6.0 + 12.0;
+            assert!(width <= FIELD_W, "{}", section.id);
+        }
     }
 
     #[test]

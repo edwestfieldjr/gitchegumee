@@ -27,7 +27,7 @@ time is paid for in miles not covered.
 |---|---|
 | Menus and panels | Up/Down to choose, Space or Enter to confirm. Either also finishes typing text. |
 | Port | Left/Right changes a setting. |
-| Voyage | The clock waits for orders: Up/Down speed, 1-6 pumps, R repair, then Space or Enter to go. It stops again after each helm section, and the hint turns yellow while it waits. Each new radio log line also holds the clock for about 1.8 real seconds so it can be read. |
+| Voyage | The clock waits for orders: Up/Down speed, 1-6 pumps, R repair, then Space or Enter to go. It stops again after each helm section, and the hint turns yellow while it waits. Under way, the hint and each helm section's opening line remind the player to keep clear of breakers and debris, and two radio log lines do the same. Each new radio log line also holds the clock for about 1.8 real seconds so it can be read. |
 | Helm | Left/Right or A/D to steer, Up/Down speed. |
 | Any screen | P or Esc pauses; P, Esc, Space or Enter resumes. A pause stops game time and sound, and other keys do nothing except mute. M mutes or unmutes, for as long as the game is open. Hints for P and M are always on show in the bottom right corner, and the M hint turns to an amber `M MUTED` while muted. |
 
