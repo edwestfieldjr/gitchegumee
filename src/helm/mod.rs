@@ -1,8 +1,11 @@
 //! The action layer: a top-down run through the seas at the helm.
 
+mod debris;
 pub mod sim;
 
 use bevy::prelude::*;
+
+use debris::debris_art;
 
 use crate::audio::Sfx;
 use crate::boot::{FRAME_SIZE, HELM_ANGLES, Sprites};
@@ -433,7 +436,20 @@ fn spawn_hazards(mut commands: Commands, mut run: ResMut<HelmRun>) {
                     x += CREST_COLUMN;
                 }
             }
-            HazardKind::Debris | HazardKind::Shoal => {
+            HazardKind::Debris => {
+                let (width, height) = (hazard.w.floor() as i32, hazard.h.floor() as i32);
+                for span in debris_art(width, height, hazard.at as u32) {
+                    piece(
+                        hazard.x.floor() + span.x as f32,
+                        span.y as f32,
+                        span.w as f32,
+                        1.0,
+                        span.color,
+                        order,
+                    );
+                }
+            }
+            HazardKind::Shoal => {
                 piece(hazard.x, 0.0, hazard.w, hazard.h, Pal::Sand, order);
             }
         }
