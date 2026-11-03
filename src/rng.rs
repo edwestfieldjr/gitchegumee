@@ -4,7 +4,6 @@
 //! uniform rolls, and the stream must stay stable across dependency upgrades.
 
 use bevy::prelude::*;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 const MULTIPLIER: u64 = 6_364_136_223_846_793_005;
 const INCREMENT: u64 = 1_442_695_040_888_963_407;
@@ -58,9 +57,21 @@ pub fn choose_seed() -> u64 {
     {
         return seed;
     }
+    clock_seed()
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn clock_seed() -> u64 {
+    use std::time::{SystemTime, UNIX_EPOCH};
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(1975, |elapsed| elapsed.as_nanos() as u64)
+}
+
+/// `SystemTime` panics in a browser, so ask the page for the time.
+#[cfg(target_arch = "wasm32")]
+fn clock_seed() -> u64 {
+    js_sys::Date::now() as u64
 }
 
 pub struct RngPlugin;

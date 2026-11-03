@@ -5,7 +5,12 @@ on:
     branches: [main]
     paths:
       - "site/**"
+      - "src/**"
+      - "assets/**"
+      - "tools/build_web.sh"
       - ".github/workflows/pages.yml"
+      - "Cargo.toml"
+      - "Cargo.lock"
   workflow_dispatch:
 
 permissions:
@@ -25,9 +30,27 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/wasm-bindgen
+            ~/.cargo/registry
+            target
+          key: web-${{ hashFiles('Cargo.lock') }}
+          restore-keys: web-
+      - name: Install wasm-bindgen
+        run: |
+          version=$(grep -A1 '^name = "wasm-bindgen"$' Cargo.lock | sed -n 's/^version = "\(.*\)"$/\1/p')
+          if [ "$(wasm-bindgen --version 2>/dev/null)" != "wasm-bindgen $version" ]; then
+            cargo install wasm-bindgen-cli --version "$version" --locked --force
+          fi
+      - run: tools/build_web.sh
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: site
+          path: dist
       - id: deployment
         uses: actions/deploy-pages@v4

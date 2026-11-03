@@ -21,6 +21,11 @@ pub const VIEW_H: u32 = 200;
 /// Pixels from one line of text to the next.
 pub const CELL_LINE: f32 = CELL_H;
 const DISPLAY_LAYER: usize = 1;
+/// The low-resolution view's texture format. WebGL2 can't use BGRA here.
+#[cfg(not(target_arch = "wasm32"))]
+const VIEW_FORMAT: TextureFormat = TextureFormat::Bgra8UnormSrgb;
+#[cfg(target_arch = "wasm32")]
+const VIEW_FORMAT: TextureFormat = TextureFormat::Rgba8UnormSrgb;
 
 /// Z bands, so draw order is decided in one place.
 pub mod z {
@@ -210,12 +215,7 @@ struct DrawLabels;
 struct ViewQuad;
 
 fn setup_view(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
-    let target = images.add(Image::new_target_texture(
-        VIEW_W,
-        VIEW_H,
-        TextureFormat::Bgra8UnormSrgb,
-        None,
-    ));
+    let target = images.add(Image::new_target_texture(VIEW_W, VIEW_H, VIEW_FORMAT, None));
     commands.spawn((
         Camera2d,
         Camera {

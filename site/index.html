@@ -43,7 +43,8 @@
   .sea { height: 8px; margin: 0 auto 2rem; max-width: 576px; background: repeating-linear-gradient(90deg, var(--foam) 0 24px, var(--lake) 24px 48px); }
   .actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .75rem; }
   .button { display: inline-block; padding: .55rem 1.1rem; border: 2px solid var(--amber); color: var(--amber); text-decoration: none; text-transform: uppercase; }
-  .button:hover { background: var(--amber); color: var(--deep); }
+  .button:hover, .button.primary { background: var(--amber); color: var(--deep); }
+  .button.primary:hover { background: var(--yellow); border-color: var(--yellow); color: var(--deep); }
 
   section { padding: 3rem 0; border-bottom: 1px solid var(--slate); }
   h2 { color: var(--amber); font-size: 1.15rem; letter-spacing: .08em; margin: 0 0 1.25rem; text-transform: uppercase; }
@@ -86,8 +87,9 @@
     <p class="subtitle">The Last Voyage of the Edmund Fitzgerald</p>
     <img class="ship" src="img/freighter.png" width="576" height="180" alt="Pixel-art side view of a long Great Lakes freighter.">
     <div class="sea"></div>
-    <div class="actions" data-repo-links hidden>
-      <a class="button" data-repo-link href="#">Source on GitHub</a>
+    <div class="actions">
+      <a class="button primary" href="play/">Play in your browser</a>
+      <a class="button" href="https://github.com/edwestfieldjr/gitchegumee">Source on GitHub</a>
     </div>
   </div>
 </header>
@@ -164,7 +166,8 @@
 
   <section>
     <h2>Play it</h2>
-    <p>The game runs on desktop Linux and is built from source for now. There's no browser version yet. You need stable Rust; on Arch Linux, install the system dependencies, then run the game from the repository root:</p>
+    <p><a href="play/">Play in your browser</a> on a computer with a keyboard. The download is large, so the first load takes a moment.</p>
+    <p>To build the desktop version from source on Linux, you need stable Rust. On Arch Linux, install the system dependencies, then run the game from the repository root:</p>
     <pre><code>sudo pacman -S --needed alsa-lib systemd-libs vulkan-icd-loader pkgconf
 cargo run --release</code></pre>
     <p>The first build takes a while.</p>
@@ -175,16 +178,5 @@ cargo run --release</code></pre>
   <p>An independent project, not affiliated with or endorsed by the families of the crew, the ship's owners, or any related organization. Early in development.</p>
 </footer>
 
-<script>
-  // On a github.io project page, the address names the repository.
-  (function () {
-    var owner = location.hostname.match(/^([^.]+)\.github\.io$/);
-    var repo = location.pathname.split("/")[1];
-    if (!owner || !repo) return;
-    document.querySelector("[data-repo-link]").href =
-      "https://github.com/" + owner[1] + "/" + repo;
-    document.querySelector("[data-repo-links]").hidden = false;
-  })();
-</script>
 </body>
 </html>

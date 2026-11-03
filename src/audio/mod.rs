@@ -62,7 +62,7 @@ fn layer_volume(kind: LayerKind, storm: f32) -> f32 {
 
 fn start_title_music(mut commands: Commands, server: Res<AssetServer>) {
     commands.spawn((
-        AudioPlayer::new(server.load("audio/title_theme_placeholder.ogg")),
+        AudioPlayer::new(server.load("audio/title_theme.ogg")),
         PlaybackSettings::LOOP.with_volume(Volume::Linear(TITLE_VOLUME)),
         DespawnOnExit(GameState::Title),
     ));

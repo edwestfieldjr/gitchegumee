@@ -191,9 +191,103 @@ def horn():
     return buf
 
 
+# The title theme: an original tune in the manner of a slow folk ballad. It rolls
+# in 6/8 over picked chords and a low drone, in plain A minor. Sparse the first
+# time through, with a second voice on the repeat.
+EIGHTH = 0.3
+THEME_CHORDS = [
+    (45, 52, 57, 60),  # Am
+    (45, 52, 57, 60),
+    (43, 50, 55, 59),  # G
+    (45, 52, 57, 60),
+    (48, 55, 60, 64),  # C
+    (43, 50, 55, 59),
+    (40, 47, 52, 55),  # Em
+    (45, 52, 57, 60),
+    (48, 55, 60, 64),
+    (43, 50, 55, 59),
+    (45, 52, 57, 60),
+    (41, 48, 53, 57),  # F
+    (48, 55, 60, 64),
+    (43, 50, 55, 59),
+    (45, 52, 57, 60),
+    (45, 52, 57, 60),
+]
+# For each bar: (eighth in the bar, length in eighths, MIDI note).
+THEME_TUNE = [
+    [(0, 3, 69), (3, 2, 72), (5, 1, 71)],
+    [(0, 4, 69), (4, 2, 64)],
+    [(0, 2, 67), (2, 1, 69), (3, 3, 71)],
+    [(0, 6, 69)],
+    [(0, 3, 72), (3, 2, 76), (5, 1, 74)],
+    [(0, 2, 71), (2, 1, 74), (3, 3, 67)],
+    [(0, 3, 71), (3, 2, 67), (5, 1, 64)],
+    [(0, 6, 69)],
+    [(0, 2, 76), (2, 1, 76), (3, 3, 79)],
+    [(0, 3, 74), (3, 3, 71)],
+    [(0, 2, 72), (2, 1, 71), (3, 3, 69)],
+    [(0, 3, 65), (3, 2, 69), (5, 1, 72)],
+    [(0, 3, 76), (3, 3, 72)],
+    [(0, 2, 74), (2, 1, 72), (3, 3, 71)],
+    [(0, 3, 69), (3, 3, 64)],
+    [(0, 6, 69)],
+]
+# Which chord tone each eighth of the bar picks.
+PICKING = [0, 2, 3, 1, 3, 2]
+# A second voice, this many semitones below the tune, by the tune's note.
+THEME_HARMONY = {64: 5, 65: 5, 67: 3, 69: 5, 71: 4, 72: 3, 74: 3, 76: 4, 79: 3}
+
+
+def title_theme():
+    bar_seconds = 6 * EIGHTH
+    passes = 2
+    buf = empty(len(THEME_CHORDS) * bar_seconds * passes)
+    for repeat in range(passes):
+        for index, chord in enumerate(THEME_CHORDS):
+            bar = (repeat * len(THEME_CHORDS) + index) * bar_seconds
+            add_note(buf, bar, bar_seconds, chord[0] - 12, triangle, 0.34, release=0.3)
+            for step, tone in enumerate(PICKING):
+                add_note(
+                    buf,
+                    bar + step * EIGHTH,
+                    EIGHTH * 1.6,
+                    chord[tone],
+                    lambda p: square(p, 0.125),
+                    0.07,
+                    release=0.3,
+                )
+            for eighth, length, note in THEME_TUNE[index]:
+                seconds = length * EIGHTH * 0.95
+                start = bar + eighth * EIGHTH
+                add_note(buf, start, seconds, note, triangle, 0.42, attack=0.02, release=0.18)
+                add_note(
+                    buf,
+                    start,
+                    seconds,
+                    note,
+                    lambda p: square(p, 0.25),
+                    0.07,
+                    attack=0.02,
+                    release=0.18,
+                )
+                if repeat == 1:
+                    add_note(
+                        buf,
+                        start,
+                        seconds,
+                        note - THEME_HARMONY[note],
+                        lambda p: square(p, 0.5),
+                        0.05,
+                        attack=0.02,
+                        release=0.18,
+                    )
+    return buf
+
+
 def main():
     out = Path(sys.argv[1])
     out.mkdir(parents=True, exist_ok=True)
+    save(out / "title_theme.wav", title_theme())
     save(out / "music_calm.wav", calm_layer())
     save(out / "music_storm.wav", storm_layer())
     save(out / "music_wind.wav", wind_layer())

@@ -8,6 +8,8 @@ all 29 men aboard. No bodies were recovered, and the cause of the sinking is
 still unknown. This game is meant as a memorial. It uses fictional crew names
 and roles, and it doesn't present any one theory as fact.
 
+**[Play it and read more at westfield.dev/gitchegumee](https://westfield.dev/gitchegumee/)**
+
 ## The game
 
 You command the ship from the dock to the end of the voyage, moving between two
@@ -35,7 +37,8 @@ ship. There is no score and there are no saves: each voyage lasts one sitting.
 ## Build and run
 
 You need stable Rust that supports the 2024 edition. The game is developed on
-desktop Linux. Windows, macOS and web builds are planned but not yet supported.
+desktop Linux, with a browser build for the web. Windows and macOS builds are
+planned but not yet supported.
 
 On Arch Linux, install the system dependencies:
 
@@ -43,13 +46,19 @@ On Arch Linux, install the system dependencies:
 sudo pacman -S --needed alsa-lib systemd-libs vulkan-icd-loader pkgconf
 ```
 
-Then, from the repository root:
+Then clone the repository and run the game:
 
 ```sh
+git clone https://github.com/edwestfieldjr/gitchegumee.git
+cd gitchegumee
 cargo run --release
 ```
 
 The first build compiles [Bevy](https://bevyengine.org/) and takes a while.
+
+To build the website and browser version into `dist/`, install the
+`wasm32-unknown-unknown` target and the `wasm-bindgen` version in `Cargo.lock`,
+then run `tools/build_web.sh`. Serve `dist/` with any web server.
 
 ## Development
 
@@ -76,7 +85,7 @@ files under `assets/data/`. Game speed and most other tuning are in
 
 ## Status
 
-Early and playable from start to finish. The title theme is still a placeholder.
+Early and playable from start to finish.
 
 ## Content and music
 

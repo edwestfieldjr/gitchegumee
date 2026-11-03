@@ -65,4 +65,3 @@ up, `DOWNBOUND_SHOT_DIR` saves screenshots, and `DOWNBOUND_SEED` fixes the seed.
 
 ## To do
 
-- Replace the placeholder title theme.

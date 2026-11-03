@@ -18,6 +18,7 @@ mod ui;
 mod voyage;
 mod weather;
 
+use bevy::asset::AssetMetaCheck;
 use bevy::prelude::*;
 
 fn main() {
@@ -25,10 +26,19 @@ fn main() {
     app.add_plugins(
         DefaultPlugins
             .set(ImagePlugin::default_nearest())
+            // A web server answers a check for missing .meta files with errors.
+            .set(AssetPlugin {
+                meta_check: AssetMetaCheck::Never,
+                ..default()
+            })
             .set(WindowPlugin {
                 primary_window: Some(Window {
                     title: "Gitche Gumee: The Last Voyage of the Edmund Fitzgerald".into(),
                     resolution: (960, 600).into(),
+                    // In a browser, fill the page's canvas.
+                    canvas: Some("#game".into()),
+                    fit_canvas_to_parent: true,
+                    prevent_default_event_handling: true,
                     ..default()
                 }),
                 ..default()
