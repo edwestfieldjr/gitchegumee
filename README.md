@@ -34,9 +34,9 @@ keys, and a tap on the game screen acts as Enter.
 
 ## Build and run
 
-The game is developed and tested on desktop Linux. Windows and macOS should work
-the same way, but have not been tested yet. If you try one, please
-[open an issue](https://github.com/edwestfieldjr/gitchegumee/issues) to say how it went.
+Rust and Bevy support Windows, macOS and Linux, so the game should run on all
+three. If you hit a problem,
+[open an issue](https://github.com/edwestfieldjr/gitchegumee/issues).
 
 You need Rust 1.97.1 or newer. If you already have Rust, run `rustup update`.
 
