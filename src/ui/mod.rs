@@ -249,6 +249,17 @@ pub fn integer_scale(physical_width: u32, physical_height: u32) -> u32 {
         .max(1)
 }
 
+/// The scale in physical pixels to draw the view at. Phone browsers are too small
+/// for whole-number scaling to fill the screen, so below 3x they scale to fit.
+fn view_scale(physical_width: u32, physical_height: u32, allow_fraction: bool) -> f32 {
+    let whole = integer_scale(physical_width, physical_height);
+    if allow_fraction && whole < 3 {
+        (physical_width as f32 / VIEW_W as f32).min(physical_height as f32 / VIEW_H as f32)
+    } else {
+        whole as f32
+    }
+}
+
 fn fit_view(
     mut resized: MessageReader<WindowResized>,
     window: Single<&Window, With<PrimaryWindow>>,
@@ -259,8 +270,11 @@ fn fit_view(
         return;
     }
     *first_frame = true;
-    let scale = integer_scale(window.physical_width(), window.physical_height()) as f32
-        / window.scale_factor();
+    let scale = view_scale(
+        window.physical_width(),
+        window.physical_height(),
+        cfg!(target_arch = "wasm32"),
+    ) / window.scale_factor();
     quad.scale = Vec3::new(scale, scale, 1.0);
 }
 
@@ -302,6 +316,13 @@ mod tests {
         assert_eq!(bar.filled(), 13.0);
         bar.value = 2.0;
         assert_eq!(bar.filled(), 40.0);
+    }
+
+    #[test]
+    fn small_browser_windows_scale_to_fit() {
+        assert_eq!(view_scale(480, 400, true), 1.5);
+        assert_eq!(view_scale(480, 400, false), 1.0);
+        assert_eq!(view_scale(1000, 610, true), 3.0);
     }
 
     #[test]

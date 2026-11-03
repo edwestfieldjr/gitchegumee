@@ -34,6 +34,9 @@ ship. There is no score and there are no saves: each voyage lasts one sitting.
 | Chart | Up/Down for speed, 1–6 for pumps, R to repair, Space or Enter to go. |
 | Helm | Left/Right or A/D to steer, Up/Down for speed. |
 
+In the browser on a phone or tablet, on-screen buttons take the place of the
+keys.
+
 ## Build and run
 
 You need stable Rust that supports the 2024 edition. The game is developed on
@@ -97,4 +100,4 @@ of the crew, the ship's owners, or any related organization.
 
 ## License
 
-No license has been chosen yet, so all rights are reserved for now.
+Released under the [MIT License](LICENSE).

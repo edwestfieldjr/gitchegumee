@@ -2,34 +2,91 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
 <title>Play Gitche Gumee</title>
 <link rel="icon" href="../img/freighter.png">
 <style>
-  :root { --night: #0a1638; --foam: #c0e0f0; --gray: #a0a0a0; --amber: #e08000; --yellow: #f0d040; --mono: ui-monospace, "Cascadia Mono", "DejaVu Sans Mono", Menlo, Consolas, monospace; }
+  :root { --night: #0a1638; --foam: #c0e0f0; --gray: #a0a0a0; --slate: #505050; --amber: #e08000; --yellow: #f0d040; --mono: ui-monospace, "Cascadia Mono", "DejaVu Sans Mono", Menlo, Consolas, monospace; }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; background: #000; color: var(--foam); font: 1rem/1.6 var(--mono); }
   #stage { position: fixed; inset: 0; }
   canvas { display: block; width: 100%; height: 100%; outline: none; }
-  #intro { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.25rem; padding: 1rem; background: var(--night); text-align: center; }
+  #intro { position: fixed; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.25rem; padding: 1rem; background: var(--night); text-align: center; }
   #intro[hidden] { display: none; }
   h1 { margin: 0; color: #f0f0e8; font-size: clamp(1.75rem, 7vw, 3.5rem); line-height: 1.1; text-transform: uppercase; }
-  img { width: min(100%, 384px); height: auto; image-rendering: pixelated; }
-  p { margin: 0; max-width: 34rem; }
-  button { padding: .7rem 1.4rem; border: 2px solid var(--amber); background: var(--amber); color: #050b1e; font: inherit; text-transform: uppercase; cursor: pointer; }
-  button:hover:enabled { background: var(--yellow); border-color: var(--yellow); }
-  button:disabled { background: none; color: var(--amber); cursor: progress; }
-  button:focus-visible, a:focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
-  a { color: var(--gray); }
+  #intro img { width: min(100%, 384px); height: auto; image-rendering: pixelated; }
+  #intro p { margin: 0; max-width: 34rem; }
+  #start { padding: .7rem 1.4rem; border: 2px solid var(--amber); background: var(--amber); color: #050b1e; font: inherit; text-transform: uppercase; cursor: pointer; }
+  #start:hover:enabled { background: var(--yellow); border-color: var(--yellow); }
+  #start:disabled { background: none; color: var(--amber); cursor: progress; }
+  #start:focus-visible, a:focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
+  #intro a { color: var(--gray); }
   #error { color: #ff8a70; }
+  .touch-only { display: none; }
+
+  /* Touch screens: the game on top with the controls below, or between them when sideways. */
+  #controls { display: none; }
+  .touch, .touch body { overflow: hidden; overscroll-behavior: none; touch-action: none; }
+  .touch body { position: fixed; inset: 0; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  .touch .touch-only { display: inline; }
+  .touch .keyboard-only { display: none; }
+  .touch #stage { inset: env(safe-area-inset-top) env(safe-area-inset-right) auto env(safe-area-inset-left); height: min(62.5vw, 52dvh); }
+  .touch #controls {
+    position: fixed; inset: auto 0 0 0; z-index: 1;
+    height: calc(100dvh - min(62.5vw, 52dvh) - env(safe-area-inset-top));
+    display: grid; grid-template: "pad actions" 1fr / auto 1fr; align-items: center; gap: .75rem;
+    padding: .5rem max(.75rem, env(safe-area-inset-right)) max(.5rem, env(safe-area-inset-bottom)) max(.75rem, env(safe-area-inset-left));
+  }
+  #pad { grid-area: pad; display: grid; grid-template: repeat(3, var(--button)) / repeat(3, var(--button)); --button: clamp(3rem, 15dvh, 4.75rem); }
+  #pad [data-code="ArrowUp"] { grid-area: 1 / 2; }
+  #pad [data-code="ArrowLeft"] { grid-area: 2 / 1; }
+  #pad [data-code="ArrowRight"] { grid-area: 2 / 3; }
+  #pad [data-code="ArrowDown"] { grid-area: 3 / 2; }
+  #actions { grid-area: actions; display: grid; gap: .5rem; grid-template-columns: repeat(3, 1fr); grid-auto-rows: minmax(2.75rem, 1fr); max-height: 100%; justify-self: end; width: min(100%, 15rem); }
+  #actions .wide { grid-column: span 3; }
+  #actions .label { grid-column: span 3; color: var(--gray); font-size: .75rem; line-height: 1; align-self: end; text-align: center; }
+  #controls button {
+    display: flex; align-items: center; justify-content: center; margin: 0; padding: 0; min-width: 0;
+    border: 2px solid var(--slate); border-radius: 0; background: var(--night); color: var(--foam);
+    font: 700 1.05rem/1 var(--mono); touch-action: none; -webkit-tap-highlight-color: transparent; -webkit-appearance: none; appearance: none;
+  }
+  #controls button.enter { border-color: var(--amber); color: var(--amber); }
+  #controls button[data-held] { background: var(--amber); border-color: var(--amber); color: #050b1e; }
+  @media (orientation: landscape) {
+    .touch #stage { inset: env(safe-area-inset-top) auto 0 50%; transform: translateX(-50%); width: min(160dvh, calc(100vw - 23rem)); height: auto; }
+    .touch #controls { inset: 0; height: auto; grid-template: "pad . actions" 1fr / auto 1fr auto; pointer-events: none; }
+    .touch #controls button { pointer-events: auto; }
+    #pad { --button: clamp(2.5rem, 24dvh, 3.5rem); }
+    #actions { width: 9rem; grid-auto-rows: clamp(2rem, 14dvh, 3rem); align-content: center; gap: .3rem; }
+  }
 </style>
 </head>
 <body>
 <div id="stage"><canvas id="game" tabindex="0" aria-label="Gitche Gumee game screen"></canvas></div>
+<div id="controls" hidden>
+  <div id="pad">
+    <button type="button" data-code="ArrowUp" data-key="ArrowUp" aria-label="Up">▲</button>
+    <button type="button" data-code="ArrowLeft" data-key="ArrowLeft" aria-label="Left">◀</button>
+    <button type="button" data-code="ArrowRight" data-key="ArrowRight" aria-label="Right">▶</button>
+    <button type="button" data-code="ArrowDown" data-key="ArrowDown" aria-label="Down">▼</button>
+  </div>
+  <div id="actions">
+    <button class="wide enter" type="button" data-code="Enter" data-key="Enter">ENTER</button>
+    <span class="label">PUMPS</span>
+    <button type="button" data-code="Digit1" data-key="1" aria-label="Pump 1">1</button>
+    <button type="button" data-code="Digit2" data-key="2" aria-label="Pump 2">2</button>
+    <button type="button" data-code="Digit3" data-key="3" aria-label="Pump 3">3</button>
+    <button type="button" data-code="Digit4" data-key="4" aria-label="Pump 4">4</button>
+    <button type="button" data-code="Digit5" data-key="5" aria-label="Pump 5">5</button>
+    <button type="button" data-code="Digit6" data-key="6" aria-label="Pump 6">6</button>
+    <button class="wide" type="button" data-code="KeyR" data-key="r">REPAIR</button>
+  </div>
+</div>
 <div id="intro">
   <h1>Gitche Gumee</h1>
   <img src="../img/freighter.png" width="384" height="120" alt="">
-  <p>Needs a keyboard and a browser with WebGL2. The game has sound.</p>
+  <p><span class="keyboard-only">Needs a keyboard and a browser with WebGL2.</span><span class="touch-only">Use the on-screen buttons. Works either way up. Turn off silent mode to hear it.</span> The game has sound.</p>
   <button id="start" type="button">Start the voyage</button>
   <p id="error" role="alert" hidden></p>
   <a href="../">Back to the site</a>
@@ -38,6 +95,59 @@
   const intro = document.getElementById("intro");
   const start = document.getElementById("start");
   const error = document.getElementById("error");
+  const canvas = document.getElementById("game");
+  const controls = document.getElementById("controls");
+
+  // Mobile browsers can leave audio suspended, so keep the game's audio contexts
+  // and wake them on every tap.
+  const contexts = [];
+  for (const name of ["AudioContext", "webkitAudioContext"]) {
+    const Original = window[name];
+    if (!Original) continue;
+    window[name] = class extends Original {
+      constructor(...args) { super(...args); contexts.push(this); }
+    };
+  }
+  const wakeAudio = () => contexts.forEach((context) => { if (context.state !== "running") context.resume(); });
+  addEventListener("pointerdown", wakeAudio, true);
+  addEventListener("pointerup", wakeAudio, true);
+  addEventListener("touchend", wakeAudio, true);
+
+  // On-screen buttons send the game the same key events as a keyboard.
+  const send = (type, button) => canvas.dispatchEvent(new KeyboardEvent(type, {
+    key: button.dataset.key, code: button.dataset.code, bubbles: true, cancelable: true,
+  }));
+  function release(button) {
+    if (!button.hasAttribute("data-held")) return;
+    button.removeAttribute("data-held");
+    send("keyup", button);
+  }
+  const buttons = [...controls.querySelectorAll("button")];
+  for (const button of buttons) {
+    button.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      button.setPointerCapture(event.pointerId);
+      if (button.hasAttribute("data-held")) return;
+      button.setAttribute("data-held", "");
+      send("keydown", button);
+    });
+    for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) {
+      button.addEventListener(type, () => release(button));
+    }
+    button.addEventListener("contextmenu", (event) => event.preventDefault());
+  }
+  const releaseAll = () => buttons.forEach(release);
+  addEventListener("blur", releaseAll);
+  document.addEventListener("visibilitychange", releaseAll);
+
+  // Stop the page from scrolling or zooming under the player's thumbs.
+  const touch = matchMedia("(pointer: coarse)").matches;
+  if (touch) {
+    document.documentElement.classList.add("touch");
+    controls.hidden = false;
+    document.addEventListener("touchmove", (event) => event.preventDefault(), { passive: false });
+    document.addEventListener("gesturestart", (event) => event.preventDefault());
+  }
 
   // Starting from a click lets the browser play the game's sound.
   async function begin() {
@@ -47,7 +157,7 @@
     try {
       const game = await import("./game.js");
       intro.hidden = true;
-      document.getElementById("game").focus();
+      canvas.focus();
       await game.default();
     } catch (reason) {
       // winit leaves its event loop by throwing this on purpose.
