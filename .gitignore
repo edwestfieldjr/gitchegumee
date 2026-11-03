@@ -1,3 +1,4 @@
 docs/art/reference/
 target/
 dist/
+.claude/
