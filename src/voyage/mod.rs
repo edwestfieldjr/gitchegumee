@@ -56,6 +56,8 @@ pub struct Voyage {
     /// The ship has outlived the historical last contact.
     pub past_gate: bool,
     pub log: Vec<String>,
+    /// Every log line ever written, which keeps counting after old ones drop off.
+    pub logged: usize,
     pub hazard_hits: u32,
     pub rogue_hits: u32,
     /// Waypoints already announced on the radio log.
@@ -74,6 +76,7 @@ impl Default for Voyage {
             lee_until: 0.0,
             past_gate: false,
             log: Vec::new(),
+            logged: 0,
             hazard_hits: 0,
             rogue_hits: 0,
             passed: BTreeSet::new(),
@@ -165,7 +168,9 @@ impl Voyage {
     }
 
     pub fn add_log(&mut self, line: impl Into<String>) {
-        self.log.extend(wrap(&line.into(), LOG_COLUMNS));
+        let lines = wrap(&line.into(), LOG_COLUMNS);
+        self.logged += lines.len();
+        self.log.extend(lines);
         let excess = self.log.len().saturating_sub(LOG_LINES);
         self.log.drain(..excess);
     }

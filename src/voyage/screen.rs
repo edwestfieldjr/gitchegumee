@@ -18,6 +18,9 @@ const SIDE_X: f32 = 228.0;
 const LOG_Y: f32 = 133.0;
 const LOG_ROWS: usize = 5;
 const PATH_DOT_NM: f32 = 7.0;
+/// Game seconds the clock holds so a new radio log line can be read. At a `pace`
+/// of 0.4375 that is about 1.8 real seconds.
+const LOG_READ_SECONDS: f32 = 0.8;
 /// Miles the Anderson drops astern by the time she loses sight of the ship.
 const ANDERSON_MAX_LAG_NM: f32 = 14.0;
 const ANDERSON_KEPT_LAG_NM: f32 = 5.0;
@@ -66,9 +69,38 @@ fn stop_for_orders(mut proceeding: ResMut<Proceeding>) {
     proceeding.0 = false;
 }
 
+/// The radio log lines already seen, and how long the clock is still holding for
+/// the newest of them.
+#[derive(Resource, Default)]
+struct LogHold {
+    seen: usize,
+    left: f32,
+}
+
+impl LogHold {
+    /// Move on by `seconds` of game time, and say whether the clock should hold.
+    /// Lines that arrived while waiting for orders can already be read at leisure.
+    fn step(&mut self, log_lines: usize, proceeding: bool, seconds: f32) -> bool {
+        if !proceeding {
+            self.seen = log_lines;
+            self.left = 0.0;
+        } else if log_lines > self.seen {
+            self.seen = log_lines;
+            self.left = LOG_READ_SECONDS;
+        } else {
+            self.left = (self.left - seconds).max(0.0);
+        }
+        self.left > 0.0
+    }
+}
+
 /// The voyage clock while the chart is up, in minutes per game second.
-fn chart_rate(proceeding: bool, minutes_per_second: f32) -> f32 {
-    if proceeding { minutes_per_second } else { 0.0 }
+fn chart_rate(proceeding: bool, holding: bool, minutes_per_second: f32) -> f32 {
+    if proceeding && !holding {
+        minutes_per_second
+    } else {
+        0.0
+    }
 }
 
 fn hint_text(proceeding: bool) -> &'static str {
@@ -77,6 +109,12 @@ fn hint_text(proceeding: bool) -> &'static str {
     } else {
         "UP/DN SPEED 1-6 PUMPS R REPAIR ENTER: GO"
     }
+}
+
+/// While the clock waits for orders the hint has to stand out, or the chart just
+/// looks stuck.
+fn hint_color(proceeding: bool) -> Pal {
+    if proceeding { Pal::Gray } else { Pal::Yellow }
 }
 
 #[derive(Component)]
@@ -100,7 +138,11 @@ fn enter_voyage(
     mut rate: ResMut<ClockRate>,
     content: Res<Content>,
 ) {
-    rate.0 = chart_rate(proceeding.0, content.balance.voyage_minutes_per_second);
+    rate.0 = chart_rate(
+        proceeding.0,
+        false,
+        content.balance.voyage_minutes_per_second,
+    );
     let scope = DespawnOnExit(GameState::Voyage);
     commands.spawn((
         rect(0.0, 0.0, 320.0, 200.0, Pal::Night, z::BACKGROUND),
@@ -219,17 +261,25 @@ fn enter_voyage(
         ));
     }
     commands.spawn((
-        label(hint_text(proceeding.0), 4.0, 190.0, Pal::Gray),
+        label(
+            hint_text(proceeding.0),
+            4.0,
+            190.0,
+            hint_color(proceeding.0),
+        ),
         HintLabel,
         scope,
     ));
 }
 
 fn voyage_input(
+    time: Res<Time>,
     keys: Res<ButtonInput<KeyCode>>,
     ship: Res<Ship>,
+    voyage: Res<Voyage>,
     content: Res<Content>,
     mut proceeding: ResMut<Proceeding>,
+    mut log_hold: ResMut<LogHold>,
     mut rate: ResMut<ClockRate>,
     mut hint: Single<&mut Label, With<HintLabel>>,
     mut effects: MessageWriter<ApplyEffect>,
@@ -267,8 +317,17 @@ fn voyage_input(
     if advance_pressed(&keys) {
         proceeding.0 = true;
     }
-    rate.0 = chart_rate(proceeding.0, content.balance.voyage_minutes_per_second);
+    let holding = log_hold.step(voyage.logged, proceeding.0, time.delta_secs());
+    rate.0 = chart_rate(
+        proceeding.0,
+        holding,
+        content.balance.voyage_minutes_per_second,
+    );
     hint.set(hint_text(proceeding.0));
+    let color = hint_color(proceeding.0);
+    if hint.color != color {
+        hint.color = color;
+    }
 }
 
 /// Miles the Anderson is astern at a clock minute.
@@ -384,6 +443,7 @@ pub struct VoyageScreenPlugin;
 impl Plugin for VoyageScreenPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<Proceeding>()
+            .init_resource::<LogHold>()
             .add_systems(OnEnter(GameState::Port), stop_for_orders)
             .add_systems(OnExit(GameState::Helm), stop_for_orders)
             .add_systems(OnEnter(GameState::Voyage), enter_voyage)
@@ -401,9 +461,49 @@ mod tests {
     use crate::content::tests::real_content;
 
     #[test]
-    fn the_clock_waits_for_orders() {
-        assert_eq!(chart_rate(false, 520.0), 0.0);
-        assert_eq!(chart_rate(true, 520.0), 520.0);
+    fn the_clock_waits_for_orders_and_for_the_radio_log() {
+        assert_eq!(chart_rate(false, false, 520.0), 0.0);
+        assert_eq!(chart_rate(true, true, 520.0), 0.0);
+        assert_eq!(chart_rate(true, false, 520.0), 520.0);
+    }
+
+    #[test]
+    fn a_new_log_line_holds_the_clock_long_enough_to_read() {
+        let mut hold = LogHold::default();
+        assert!(!hold.step(0, true, 0.1));
+        assert!(hold.step(1, true, 0.1));
+        assert!(hold.step(1, true, LOG_READ_SECONDS / 2.0));
+        assert!(!hold.step(1, true, LOG_READ_SECONDS));
+    }
+
+    #[test]
+    fn each_new_log_line_gets_its_own_time() {
+        let mut hold = LogHold::default();
+        hold.step(1, true, 0.1);
+        hold.step(1, true, LOG_READ_SECONDS - 0.01);
+        assert!(hold.step(2, true, 0.1));
+        assert_eq!(hold.left, LOG_READ_SECONDS);
+    }
+
+    #[test]
+    fn lines_logged_while_waiting_for_orders_do_not_hold_the_clock_later() {
+        let mut hold = LogHold::default();
+        assert!(!hold.step(3, false, 0.1));
+        assert!(!hold.step(3, true, 0.1));
+    }
+
+    #[test]
+    fn a_pause_does_not_use_up_the_reading_time() {
+        let mut hold = LogHold::default();
+        hold.step(1, true, 0.0);
+        let left = hold.left;
+        hold.step(1, true, 0.0);
+        assert_eq!(hold.left, left);
+    }
+
+    #[test]
+    fn the_waiting_hint_stands_out() {
+        assert_ne!(hint_color(false), hint_color(true));
     }
 
     #[test]
