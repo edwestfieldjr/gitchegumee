@@ -18,6 +18,8 @@
   }
   #surface { position: absolute; left: 0; top: 0; display: block; image-rendering: pixelated; }
   #stage { position: absolute; background: #000; }
+  #card, #prompt { position: absolute; display: block; image-rendering: pixelated; }
+  #prompt { pointer-events: none; }
   #game { display: block; width: 100%; height: 100%; outline: none; }
   .hit {
     position: absolute; display: block; margin: 0; padding: 0; border: 0; border-radius: 0; background: none;
@@ -39,6 +41,8 @@
 <body>
 <div id="console">
   <canvas id="surface" aria-hidden="true"></canvas>
+  <img id="card" src="assets/sprites/freighter/title_card.png" width="320" height="200" alt="The freighter head-on to a storm on Lake Superior.">
+  <canvas id="prompt" width="320" height="200" aria-hidden="true"></canvas>
   <div id="hits"></div>
   <div id="stage" hidden><canvas id="game" tabindex="0" aria-label="Gitche Gumee game screen"></canvas></div>
 </div>
@@ -64,8 +68,8 @@
   const canvas = document.getElementById("game");
   const errorText = document.getElementById("error");
   const touch = matchMedia("(pointer: coarse)").matches;
-  const ship = new Image();
-  ship.src = "../img/freighter.png";
+  const card = document.getElementById("card");
+  const prompt = document.getElementById("prompt");
 
   let steerRight = false;
   try { steerRight = localStorage.getItem("steer-side") === "right"; } catch {}
@@ -162,20 +166,12 @@
     g.fillStyle = SEP.s1; g.fillRect(x + 1, y + h - 2, w - 2, 1); g.fillRect(x + w - 2, y + 1, 1, h - 2);
   }
   function drawIntro(g) {
-    const n = intro;
-    const blockH = n.shipY + 34 - n.titleY + 6, bx = n.m - 3, by = n.titleY - 3, bw = n.colW + 6;
-    g.fillStyle = SEP.s0; g.fillRect(bx - 1, by - 1, bw + 2, blockH + 2);
-    g.fillStyle = SEP.hull; g.fillRect(bx, by, bw, blockH);
-    n.titleLines.forEach((line, i) => drawText(g, line, n.m + Math.floor((n.colW - textWidth(line, 2)) / 2), n.titleY + i * 16, SEP.s7, 2));
-    n.subtitle.forEach((line, i) => drawText(g, line, n.m + Math.floor((n.colW - textWidth(line)) / 2), n.subY + i * 9, SEP.s6));
-    g.fillStyle = SEP.s1; g.fillRect(bx, n.shipY - 1, bw, 34);
-    if (ship.complete && ship.naturalWidth) g.drawImage(ship, n.m + Math.floor((n.colW - 96) / 2), n.shipY);
-    for (let x = bx; x < bx + bw; x++) { g.fillStyle = (x >> 3) % 2 ? SEP.s5 : SEP.s3; g.fillRect(x, n.shipY + 30, 1, 2); }
-    g.fillStyle = SEP.s3; g.fillRect(bx, n.shipY + 32, bw, 1);
-    g.fillStyle = SEP.s1; g.fillRect(n.rightX - 2, n.blurbY - 2, n.colW + 4, n.blurb.length * 9 + 2);
-    n.blurb.forEach((line, i) => drawText(g, line, n.rightX, n.blurbY + i * 9, SEP.s7));
+    if (!intro.blurb.length) return;
+    g.fillStyle = SEP.s1; g.fillRect(intro.x, intro.y - 2, intro.w, intro.blurb.length * 9 + 2);
+    intro.blurb.forEach((line, i) => drawText(g, line, intro.x + 2, intro.y + i * 9, SEP.s7));
   }
   function drawButton(g, b) {
+    if (b.invisible) return;
     const isHeld = held.has(b.id);
     const s = STYLES[isHeld ? "held" : b.style], drop = isHeld ? 1 : 0;
     const { x, y, w, h } = b;
@@ -210,7 +206,6 @@
     plates.forEach((plate) => drawPlate(g, plate));
     buttons.forEach((b) => drawButton(g, b));
   }
-  ship.addEventListener("load", draw);
 
   // Button sets, shared by the two console layouts.
   const pump = (i, x, y, w, h) => ({ id: `pump${i}`, x, y, w, h, text: String(i), style: "pump", key: String(i), code: `Digit${i}`, label: `Pump ${i}` });
@@ -311,52 +306,69 @@
     thumbButtons(steerX, side, speedX, side, 15, speedPlate + 12, stripY - 3);
   }
 
-  // The start screen, in one column upright and two sideways. Returns the height it needs.
+  // The start screen is the title card with the rest around it: below it upright or
+  // with a keyboard, and beside it on a sideways touch screen. Returns the height it needs.
   function layoutIntro(wide) {
-    const m = cell(8), rowH = cell(46), startH = cell(62), linkH = cell(40);
-    const colW = wide ? Math.floor((W - m * 3) / 2) : W - m * 2;
-    const rightX = wide ? m * 2 + colW : m, columns = Math.floor((colW + 1) / 6);
+    const edge = cell(8);
+    let rowH = Math.max(cell(46), 14), linkH = Math.max(cell(40), 14);
+    const frameW = wide
+      ? Math.min(Math.floor(W * 0.66), Math.floor((H - 12) * 8 / 5) + 6)
+      : touch ? W - edge * 2 : Math.min(W - edge * 2, 326);
+    const frameH = Math.floor((frameW - 6) * 5 / 8) + 6;
+    const x = wide || touch ? edge : Math.floor((W - frameW) / 2);
+    const colX = wide ? x + frameW + edge : x, colW = wide ? W - colX - edge : frameW;
     const blurbText = status === "error"
       ? "The game could not start in this browser. Reload the page to try again."
-      : touch
-        ? "Tap the game screen to move on, and use the buttons for the rest. Works either way up. Turn off silent mode to hear it."
-        : "Needs a keyboard and a browser with WebGL2. The game has sound.";
-    const blurb = wrap(blurbText, columns);
-    const subtitle = wrap("The last voyage of the Edmund Fitzgerald", columns);
-    const titleLines = colW >= textWidth("GITCHE GUMEE", 2) ? ["GITCHE GUMEE"] : ["GITCHE", "GUMEE"];
-    const hullH = titleLines.length * 16 + 2 + subtitle.length * 9 + 4 + 34 + 6;
-    const choice = touch && status !== "error" ? 12 + rowH + 4 : 0;
-    const start = status !== "error" ? startH + 4 : 0;
-    const orders = blurb.length * 9 + 6 + choice + start;
-    const total = wide ? Math.max(hullH + 3 + linkH, orders) : hullH + 8 + orders + linkH;
-    let y = Math.max(5, Math.floor((H - total) / 2));
-    const top = y;
-    intro = { titleLines, subtitle, blurb, m, colW, rightX, titleY: y };
-    y += titleLines.length * 16 + 2;
-    intro.subY = y;
-    y += subtitle.length * 9 + 4;
-    intro.shipY = y;
-    y += 34;
-    const linkX = m;
-    const linkY = wide ? y + 6 : 0;
-    y = wide ? top : y + 8;
-    intro.blurbY = y;
-    y += blurb.length * 9 + 6;
+      : touch ? "Turn off silent mode to hear it." : "";
+    const blurb = blurbText ? wrap(blurbText, Math.floor((colW - 3) / 6)) : [];
+    const words = blurb.length ? blurb.length * 9 + 6 : 0;
+    const choosing = touch && status !== "error";
+    // On a tall phone the card stays at the top. The buttons grow a little and sit
+    // down by the thumbs, with plain steel between.
+    let gap = 0;
+    if (touch && !wide) {
+      const spare = H - 7 - frameH - 4 - words - (choosing ? 16 + rowH : 0) - linkH;
+      if (spare > 0) {
+        const taller = choosing ? Math.min(Math.floor(spare * 0.6), cell(84) - rowH) : 0;
+        const longer = Math.min(Math.floor(spare * 0.4), cell(56) - linkH);
+        rowH += Math.max(0, taller);
+        linkH += Math.max(0, longer);
+        gap = spare - Math.max(0, taller) - Math.max(0, longer);
+      }
+    }
+    const choice = choosing ? 12 + rowH + 4 : 0;
+    const orders = words + choice + linkH;
+    const total = wide ? Math.max(frameH, orders) : frameH + 4 + orders + gap;
+    const top = Math.max(3, Math.floor((H - total) / 2));
+    frame = { x, y: top, w: frameW, h: frameH };
+    // The whole card is the way in. A click is what lets the browser start sound.
+    if (status === "ready") buttons.push({ id: "start", x, y: top, w: frameW, h: frameH, invisible: true, action: begin, label: "Start the voyage" });
+    let y = wide ? top : top + frameH + 4;
+    intro = { blurb, x: colX, w: colW, y: y + 2 };
+    y += words + gap;
     if (choice) {
-      plates.push(["HELM ON", rightX, y, colW]);
+      plates.push(["HELM ON", colX, y, colW]);
       y += 12;
       const half = Math.floor((colW - 2) / 2);
-      const side = (name, right, x, w) => ({ id: name, x, y, w, h: rowH, text: name, style: right === steerRight ? "bronze" : "small", pressed: right === steerRight, action: () => setSide(right), label: `Steer with the ${name.toLowerCase()} thumb` });
-      buttons.push(side("LEFT", false, rightX, half), side("RIGHT", true, rightX + half + 2, colW - half - 2));
+      const side = (name, right, sx, w) => ({ id: name, x: sx, y, w, h: rowH, text: name, style: right === steerRight ? "bronze" : "small", pressed: right === steerRight, action: () => setSide(right), label: `Steer with the ${name.toLowerCase()} thumb` });
+      buttons.push(side("LEFT", false, colX, half), side("RIGHT", true, colX + half + 2, colW - half - 2));
       y += rowH + 4;
     }
-    if (start) {
-      const loading = status === "loading";
-      buttons.push({ id: "start", x: rightX, y, w: colW, h: startH, text: loading ? "LOADING..." : columns >= 16 ? "START THE VOYAGE" : "START", style: "order", action: loading ? null : begin, label: loading ? "Loading" : "Start the voyage" });
-      y += startH + 4;
-    }
-    buttons.push({ id: "back", x: linkX, y: wide ? linkY : y, w: colW, h: linkH, text: "BACK TO THE SITE", style: "small", href: "../", label: "Back to the site" });
+    const backW = touch ? colW : Math.min(112, colW);
+    const backX = touch ? colX : colX + Math.floor((colW - backW) / 2);
+    buttons.push({ id: "back", x: backX, y, w: backW, h: linkH, text: textWidth("BACK TO THE SITE") + 4 <= backW ? "BACK TO THE SITE" : "BACK", style: "small", href: "../", label: "Back to the site" });
     return total;
+  }
+
+  // The prompt sits on the card, in the card's own pixels.
+  function drawPrompt() {
+    const g = prompt.getContext("2d");
+    g.clearRect(0, 0, 320, 200);
+    const text = status === "ready" ? "PRESS ENTER OR TAP SCREEN" : status === "loading" ? "LOADING..." : "";
+    if (!text) return;
+    const width = textWidth(text);
+    g.fillStyle = "#000000"; g.fillRect(156 - Math.floor(width / 2), 180, width + 8, 11);
+    drawText(g, text, 160 - Math.floor(width / 2), 182, "#f0d040");
   }
 
   function placeHits() {
@@ -371,7 +383,12 @@
       el.style.cssText = `left:${b.x * S}px;top:${b.y * S}px;width:${b.w * S}px;height:${b.h * S}px`;
       hits.append(el);
     }
-    if (frame) {
+    if (frame && mode === "intro") {
+      const rect = `left:${(frame.x + 3) * S}px;top:${(frame.y + 3) * S}px;width:${(frame.w - 6) * S}px;height:${(frame.h - 6) * S}px`;
+      card.style.cssText = rect;
+      prompt.style.cssText = rect;
+      drawPrompt();
+    } else if (frame) {
       stage.style.cssText = `left:${(frame.x + 3) * S}px;top:${(frame.y + 3) * S}px;width:${(frame.w - 6) * S}px;height:${(frame.h - 6) * S}px`;
     }
   }
@@ -381,10 +398,12 @@
     const w = host.clientWidth, h = host.clientHeight;
     if (!w || !h) return;
     document.documentElement.classList.toggle("playing-keys", mode === "keys");
-    if (mode === "keys") { stage.style.cssText = "left:0;top:0;width:100%;height:100%"; stage.hidden = false; return; }
-    const wide = w > h * 1.15;
+    if (mode === "keys") { card.hidden = prompt.hidden = true; stage.style.cssText = "left:0;top:0;width:100%;height:100%"; stage.hidden = false; return; }
+    const wide = touch && w > h * 1.15;
     const size = (scale) => { S = scale; W = Math.ceil(w / S); H = Math.ceil(h / S); buttons = []; plates = []; frame = null; };
-    let scale = Math.min(6, Math.max(2, wide ? Math.floor(h / 120) : Math.floor(w / 130)));
+    let scale = touch
+      ? Math.min(6, Math.max(2, wide ? Math.floor(h / 120) : Math.floor(w / 130)))
+      : Math.max(1, Math.floor(Math.min(w / 336, h / 240)));
     if (mode === "intro") {
       size(scale);
       while (layoutIntro(wide) + 4 > H && scale > 2) size(--scale);
@@ -394,6 +413,7 @@
       if (wide) layoutWide(); else layoutTall();
     }
     stage.hidden = mode !== "console";
+    card.hidden = prompt.hidden = mode !== "intro";
     surface.width = W; surface.height = H;
     surface.style.width = `${W * S}px`; surface.style.height = `${H * S}px`;
     placeHits();
@@ -472,6 +492,11 @@
     if (!b || !b.code || (event.key !== "Enter" && event.key !== " ")) return;
     event.preventDefault();
     release(b.id);
+  });
+  // Enter or Space starts the voyage, unless a button has the focus.
+  addEventListener("keydown", (event) => {
+    if (mode !== "intro" || status !== "ready" || event.repeat) return;
+    if ((event.key === "Enter" || event.key === " ") && !event.target.closest?.(".hit")) begin();
   });
   hits.addEventListener("contextmenu", (event) => event.preventDefault());
   addEventListener("blur", releaseAll);

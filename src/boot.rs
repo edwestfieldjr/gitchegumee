@@ -11,6 +11,8 @@ use crate::ui::palette::{Pal, remap_rgba, rotate_rgba, silhouette_rgba};
 
 #[derive(Resource, Clone)]
 pub struct Sprites {
+    /// The full-screen title card, drawn by `tools/gen_title_art.py`.
+    pub title: Handle<Image>,
     pub side: Handle<Image>,
     pub topdown: Handle<Image>,
     /// A white shape of the side view, tinted with one palette color.
@@ -62,6 +64,7 @@ fn helm_frames_image(sheet: &Image) -> Option<Image> {
 
 fn start_loading(mut commands: Commands, server: Res<AssetServer>) {
     commands.insert_resource(Sprites {
+        title: server.load("sprites/freighter/title_card.png"),
         side: server.load("sprites/freighter/freighter_side.png"),
         topdown: server.load("sprites/freighter/freighter_topdown_sheet.png"),
         silhouette: Handle::default(),
@@ -87,7 +90,11 @@ fn finish_loading(
     if *failed {
         return;
     }
-    let handles = [sprites.side.clone(), sprites.topdown.clone()];
+    let handles = [
+        sprites.title.clone(),
+        sprites.side.clone(),
+        sprites.topdown.clone(),
+    ];
     if !handles
         .iter()
         .all(|handle| matches!(server.load_state(handle.id()), LoadState::Loaded))

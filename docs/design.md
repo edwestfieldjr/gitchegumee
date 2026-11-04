@@ -78,3 +78,6 @@ low-resolution canvas, with invisible buttons over it for input and screen reade
   rule in `ui/palette.rs` still holds for everything the game draws.
 - On small browser screens the game scales to fit its frame, even at fractional
   sizes, so that the picture is as large as the layout allows.
+- The start screen shows the title card from `tools/gen_title_art.py`. Enter, Space
+  or a tap on the card starts the game. On tall phones the buttons below it grow
+  to fill the screen.
