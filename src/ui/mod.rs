@@ -250,14 +250,21 @@ pub fn integer_scale(physical_width: u32, physical_height: u32) -> u32 {
         .max(1)
 }
 
-/// The scale in physical pixels to draw the view at. Phone browsers are too small
-/// for whole-number scaling to fill the screen, so below 3x they scale to fit.
-fn view_scale(physical_width: u32, physical_height: u32, allow_fraction: bool) -> f32 {
-    let whole = integer_scale(physical_width, physical_height);
-    if allow_fraction && whole < 3 {
+/// The scale in physical pixels to draw the view at. Phone browsers have few
+/// logical pixels and many physical ones, so whole-number scaling would leave
+/// bars around the picture. Below 3x in logical pixels they scale to fit.
+fn view_scale(
+    physical_width: u32,
+    physical_height: u32,
+    scale_factor: f32,
+    allow_fraction: bool,
+) -> f32 {
+    let logical_width = (physical_width as f32 / scale_factor) as u32;
+    let logical_height = (physical_height as f32 / scale_factor) as u32;
+    if allow_fraction && integer_scale(logical_width, logical_height) < 3 {
         (physical_width as f32 / VIEW_W as f32).min(physical_height as f32 / VIEW_H as f32)
     } else {
-        whole as f32
+        integer_scale(physical_width, physical_height) as f32
     }
 }
 
@@ -274,6 +281,7 @@ fn fit_view(
     let scale = view_scale(
         window.physical_width(),
         window.physical_height(),
+        window.scale_factor(),
         cfg!(target_arch = "wasm32"),
     ) / window.scale_factor();
     quad.scale = Vec3::new(scale, scale, 1.0);
@@ -321,9 +329,21 @@ mod tests {
 
     #[test]
     fn small_browser_windows_scale_to_fit() {
-        assert_eq!(view_scale(480, 400, true), 1.5);
-        assert_eq!(view_scale(480, 400, false), 1.0);
-        assert_eq!(view_scale(1000, 610, true), 3.0);
+        assert_eq!(view_scale(480, 400, 1.0, true), 1.5);
+        assert_eq!(view_scale(480, 400, 1.0, false), 1.0);
+        assert_eq!(view_scale(1000, 610, 1.0, true), 3.0);
+    }
+
+    #[test]
+    fn phone_screens_fill_the_frame_at_any_pixel_density() {
+        // 500x312 logical pixels at 3 physical pixels each: 4.68x, not 4x with bars.
+        assert_eq!(view_scale(1500, 936, 3.0, true), 936.0 / 200.0);
+        assert_eq!(view_scale(1500, 936, 3.0, false), 4.0);
+    }
+
+    #[test]
+    fn large_high_density_browser_windows_stay_whole() {
+        assert_eq!(view_scale(2880, 1800, 2.0, true), 9.0);
     }
 
     #[test]
