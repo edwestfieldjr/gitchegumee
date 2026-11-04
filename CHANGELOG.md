@@ -27,6 +27,7 @@ changed this file. `CLAUDE.md` itself has changed in one line: the title.
 | Picture fills its frame on phones | On small browser screens the game now scales to fit at any pixel density, instead of leaving bars on high-density phones. Some pixels can differ slightly in size there. Desktop windows of 960x600 logical pixels or more keep whole-number scaling. |
 | A dramatic title card | New full-screen art of the ship head-on to the storm, drawn from code by `tools/gen_title_art.py` in the game's 16 colors, with the 1971 photo as a pose reference only. The ship pitches only slightly, so the card does not show her going down. The play page and the game's title screen both use it. |
 | Press Enter or tap | `PRESS ENTER OR TAP SCREEN` replaces the start button and the old `PRESS ENTER`. The browser requirements text is gone. |
+| One press to start in the browser | The browser game opens at port after the play page's card, with the theme playing there the first time, so the same card is not shown twice. Desktop builds still open at the title screen. |
 | Open-source license | MIT, in `LICENSE`. |
 | Pause during helm sections | Pause works on every screen. P or Esc pauses and P, Esc, Space or Enter resumes. Game time, the simulation and sound all stop, under a PAUSED panel. Touch screens get a PAUSE button. |
 | P and M always on screen | `P PAUSE` and `M MUTE` show in the bottom right corner of every screen. To make room, the chart keeps 5 radio log rows instead of 6, and some hint lines moved or got shorter. |

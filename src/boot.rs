@@ -62,6 +62,16 @@ fn helm_frames_image(sheet: &Image) -> Option<Image> {
     ))
 }
 
+/// The play page has already shown the title card and taken a key press to
+/// allow sound, so the browser game doesn't ask for another one.
+fn first_screen() -> GameState {
+    if cfg!(target_arch = "wasm32") {
+        GameState::Port
+    } else {
+        GameState::Title
+    }
+}
+
 fn start_loading(mut commands: Commands, server: Res<AssetServer>) {
     commands.insert_resource(Sprites {
         title: server.load("sprites/freighter/title_card.png"),
@@ -147,7 +157,7 @@ fn finish_loading(
     if let Some(frames) = frames {
         sprites.helm_frames = images.add(frames);
     }
-    next.set(GameState::Title);
+    next.set(first_screen());
 }
 
 pub struct BootPlugin;

@@ -68,15 +68,33 @@ fn layer_volume(kind: LayerKind, storm: f32) -> f32 {
     }
 }
 
-fn start_title_music(mut commands: Commands, server: Res<AssetServer>, muted: Res<Muted>) {
-    commands.spawn((
+fn title_music(server: &AssetServer, muted: &Muted) -> impl Bundle {
+    (
         AudioPlayer::new(server.load("audio/title_theme.ogg")),
         PlaybackSettings {
             muted: muted.0,
             ..PlaybackSettings::LOOP.with_volume(Volume::Linear(TITLE_VOLUME))
         },
+    )
+}
+
+fn start_title_music(mut commands: Commands, server: Res<AssetServer>, muted: Res<Muted>) {
+    commands.spawn((
+        title_music(&server, &muted),
         DespawnOnExit(GameState::Title),
     ));
+}
+
+/// The browser game opens at port, so the theme plays there the first time.
+fn start_theme_in_first_port(
+    mut commands: Commands,
+    server: Res<AssetServer>,
+    muted: Res<Muted>,
+    mut played: Local<bool>,
+) {
+    if !std::mem::replace(&mut *played, true) {
+        commands.spawn((title_music(&server, &muted), DespawnOnExit(GameState::Port)));
+    }
 }
 
 fn start_layers(mut commands: Commands, server: Res<AssetServer>, muted: Res<Muted>) {
@@ -184,6 +202,10 @@ impl Plugin for AudioGamePlugin {
         app.add_message::<Sfx>()
             .init_resource::<Muted>()
             .add_systems(OnEnter(GameState::Title), start_title_music)
+            .add_systems(
+                OnEnter(GameState::Port),
+                start_theme_in_first_port.run_if(|| cfg!(target_arch = "wasm32")),
+            )
             .add_systems(OnEnter(UnderWay), start_layers)
             .add_systems(OnEnter(PauseState::Paused), hush_for_pause)
             .add_systems(OnExit(PauseState::Paused), resume_after_pause)
