@@ -29,6 +29,7 @@ time is paid for in miles not covered.
 | Port | Left/Right changes a setting. |
 | Voyage | The clock waits for orders: Up/Down speed, 1-6 pumps, R repair, then Space or Enter to go. It stops again after each helm section, and the hint turns yellow while it waits. Under way, the hint and each helm section's opening line remind the player to keep clear of breakers and debris. The radio log stays historical, so reminders don't go there. Each new radio log line also holds the clock for about 1.8 real seconds so it can be read. |
 | Helm | Left/Right or A/D to steer, Up/Down speed. N skips ahead at 12x speed, and again takes the helm back. Everything still happens, and seas the player does not steer around still strike, so a skip cannot dodge the storm or win the survival ending for free. |
+| Idle | No screen waits forever. Ten real seconds after a screen opens, its text finishes or a key is pressed, the game presses Enter by itself and so takes whatever is selected. The timer doesn't run at the helm, during a pause, under way on the chart, during the closing scene, or until the memorial bell has rung 29 times. |
 | Any screen | P or Esc pauses; P, Esc, Space or Enter resumes. A pause stops game time and sound, and other keys do nothing except mute. M mutes or unmutes, for as long as the game is open. Hints for P and M are always on show in the bottom right corner, and the M hint turns to an amber `M MUTED` while muted. |
 
 ## Endings

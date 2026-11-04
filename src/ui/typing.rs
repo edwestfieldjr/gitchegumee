@@ -1,8 +1,9 @@
 //! Teletype text, so that the player gets time to read.
 //!
 //! Text types out one character at a time. Space or Enter finishes it, and the
-//! screen stays until another press moves on, so the player sets the reading
-//! time. [`HOLD_SECONDS`] keeps a double press from skipping the text.
+//! screen stays until another press moves on, or until the idle timer in
+//! [`super::idle`] runs out. [`HOLD_SECONDS`] keeps a double press from skipping
+//! the text.
 
 use bevy::prelude::*;
 

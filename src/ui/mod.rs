@@ -1,6 +1,7 @@
 //! Low-resolution view, text, and panels.
 
 pub mod font;
+pub mod idle;
 pub mod palette;
 pub mod pause;
 pub mod typing;
@@ -298,7 +299,12 @@ impl Plugin for UiPlugin {
         app.world_mut()
             .resource_mut::<MainScheduleOrder>()
             .insert_after(Update, DrawLabels);
-        app.add_plugins((typing::TypingPlugin, wipe::WipePlugin, pause::PausePlugin));
+        app.add_plugins((
+            typing::TypingPlugin,
+            wipe::WipePlugin,
+            pause::PausePlugin,
+            idle::IdlePlugin,
+        ));
         app.insert_resource(FontImage(font))
             .add_systems(Startup, setup_view)
             .add_systems(Update, fit_view)

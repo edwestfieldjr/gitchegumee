@@ -12,6 +12,7 @@ use crate::content::{Content, clock_text};
 use crate::rng::GameRng;
 use crate::states::{GameState, MemorialPhase};
 use crate::ui::font::wrap;
+use crate::ui::idle::Busy;
 use crate::ui::palette::Pal;
 use crate::ui::typing::{
     AfterHold, AfterTyping, FinishTyping, Typed, enter_may_advance, typed_lines,
@@ -71,6 +72,7 @@ fn outcome_timeline(
     parts: Query<Entity, With<ClosingPart>>,
     mut sfx: MessageWriter<Sfx>,
     mut next: ResMut<NextState<GameState>>,
+    mut busy: MessageWriter<Busy>,
 ) {
     let words_at = if ending.reached_bay {
         arrival::ARRIVAL_SECONDS
@@ -78,6 +80,10 @@ fn outcome_timeline(
         CLOSING_SECONDS
     };
     let before = clock.0;
+    // The closing scene plays out in full unless the player chooses to skip it.
+    if before < words_at {
+        busy.write(Busy);
+    }
     let speed = if ending.reached_bay {
         1.0
     } else {
@@ -230,7 +236,12 @@ fn ring_bell(
     mut lights: Query<&mut Visibility, With<BelfryLight>>,
     mut sfx: MessageWriter<Sfx>,
     mut next: ResMut<NextState<GameState>>,
+    mut busy: MessageWriter<Busy>,
 ) {
+    // The bell rings for all of the crew before the screen starts its wait.
+    if tolling.rung < CREW {
+        busy.write(Busy);
+    }
     tolling.clock += time.delta_secs();
     let due = tolls_by(tolling.clock);
     if due > tolling.rung {

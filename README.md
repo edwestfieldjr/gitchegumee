@@ -29,6 +29,8 @@ ship. There is no score and there are no saves: each voyage lasts one sitting.
 | Helm | Left/Right or A/D to steer, Up/Down for speed, N to skip ahead or take the helm back. |
 | Any screen | P or Esc to pause or resume (Space or Enter also resumes). M to mute or unmute. |
 
+If no key is pressed for 10 seconds, the game moves on with whatever is selected.
+
 In the browser on a phone or tablet, on-screen buttons take the place of the
 keys, and a tap on the game screen acts as Enter. One thumb steers and the other
 sets the speed. The start screen and the SWAP button trade the two sides for

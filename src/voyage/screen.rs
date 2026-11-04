@@ -9,6 +9,7 @@ use crate::content::{Content, Effect, SpeedOrder, clock_text};
 use crate::events::ApplyEffect;
 use crate::ship::{PUMPS, Pump, Ship};
 use crate::states::GameState;
+use crate::ui::idle::Busy;
 use crate::ui::palette::Pal;
 use crate::ui::{Bar, Label, advance_pressed, at, bar_parts, label, rect, z};
 use crate::weather::{Weather, compass_point};
@@ -283,6 +284,7 @@ fn voyage_input(
     mut rate: ResMut<ClockRate>,
     mut hint: Single<&mut Label, With<HintLabel>>,
     mut effects: MessageWriter<ApplyEffect>,
+    mut busy: MessageWriter<Busy>,
 ) {
     const PUMP_KEYS: [KeyCode; PUMPS] = [
         KeyCode::Digit1,
@@ -316,6 +318,10 @@ fn voyage_input(
     }
     if advance_pressed(&keys) {
         proceeding.0 = true;
+    }
+    // Under way, the chart is running and not waiting for anyone.
+    if proceeding.0 {
+        busy.write(Busy);
     }
     let holding = log_hold.step(voyage.logged, proceeding.0, time.delta_secs());
     rate.0 = chart_rate(
