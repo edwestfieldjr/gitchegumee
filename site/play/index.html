@@ -3,105 +3,76 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#000000">
+<meta name="theme-color" content="#120a06">
 <title>Play Gitche Gumee</title>
 <link rel="icon" href="../img/freighter.png">
 <style>
-  :root { --night: #0a1638; --foam: #c0e0f0; --gray: #a0a0a0; --slate: #505050; --amber: #e08000; --yellow: #f0d040; --mono: ui-monospace, "Cascadia Mono", "DejaVu Sans Mono", Menlo, Consolas, monospace; }
+  /* The console around the game is a dark rust-sepia ramp so that it recedes.
+     Bright color belongs to the game picture. */
   * { box-sizing: border-box; }
-  html, body { height: 100%; margin: 0; background: #000; color: var(--foam); font: 1rem/1.6 var(--mono); }
-  #stage { position: fixed; inset: 0; }
-  canvas { display: block; width: 100%; height: 100%; outline: none; }
-  #intro { position: fixed; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.25rem; padding: 1rem; background: var(--night); text-align: center; }
-  #intro[hidden] { display: none; }
-  h1 { margin: 0; color: #f0f0e8; font-size: clamp(1.75rem, 7vw, 3.5rem); line-height: 1.1; text-transform: uppercase; }
-  #intro img { width: min(100%, 384px); height: auto; image-rendering: pixelated; }
-  #intro p { margin: 0; max-width: 34rem; }
-  #start { padding: .7rem 1.4rem; border: 2px solid var(--amber); background: var(--amber); color: #050b1e; font: inherit; text-transform: uppercase; cursor: pointer; }
-  #start:hover:enabled { background: var(--yellow); border-color: var(--yellow); }
-  #start:disabled { background: none; color: var(--amber); cursor: progress; }
-  #start:focus-visible, a:focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
-  #intro a { color: var(--gray); }
-  #error { color: #ff8a70; }
-  .touch-only { display: none; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; margin: 0; background: #120a06; }
+  #console {
+    position: fixed; z-index: 1; overflow: hidden; background: #332014;
+    inset: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  #surface { position: absolute; left: 0; top: 0; display: block; image-rendering: pixelated; }
+  #stage { position: absolute; background: #000; }
+  #game { display: block; width: 100%; height: 100%; outline: none; }
+  .hit {
+    position: absolute; display: block; margin: 0; padding: 0; border: 0; border-radius: 0; background: none;
+    cursor: pointer; -webkit-tap-highlight-color: transparent; -webkit-appearance: none; appearance: none;
+  }
+  .hit:focus-visible { outline: 3px solid #d8bd96; outline-offset: -3px; }
+  .words { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
-  /* Touch screens: the game on top with the controls below, or between them when sideways. */
-  #controls { display: none; }
+  /* Once a keyboard player starts, the game takes the whole window. */
+  .playing-keys #console { inset: 0; background: #000; }
+  .playing-keys #surface, .playing-keys #hits { display: none; }
+
+  /* Stop the page from scrolling or zooming under the player's thumbs. */
   .touch, .touch body { overflow: hidden; overscroll-behavior: none; touch-action: none; }
   .touch body { position: fixed; inset: 0; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-  .touch .touch-only { display: inline; }
-  .touch .keyboard-only { display: none; }
-  .touch #stage { inset: env(safe-area-inset-top) env(safe-area-inset-right) auto env(safe-area-inset-left); height: min(62.5vw, 52dvh); }
-  .touch #controls {
-    position: fixed; inset: auto 0 0 0; z-index: 1;
-    height: calc(100dvh - min(62.5vw, 52dvh) - env(safe-area-inset-top));
-    display: grid; grid-template: "pad actions" 1fr / auto 1fr; align-items: center; gap: .75rem;
-    padding: .5rem max(.75rem, env(safe-area-inset-right)) max(.5rem, env(safe-area-inset-bottom)) max(.75rem, env(safe-area-inset-left));
-  }
-  #pad { grid-area: pad; display: grid; grid-template: repeat(3, var(--button)) / repeat(3, var(--button)); --button: clamp(3rem, 15dvh, 4.75rem); }
-  #pad [data-code="ArrowUp"] { grid-area: 1 / 2; }
-  #pad [data-code="ArrowLeft"] { grid-area: 2 / 1; }
-  #pad [data-code="ArrowRight"] { grid-area: 2 / 3; }
-  #pad [data-code="ArrowDown"] { grid-area: 3 / 2; }
-  #actions { grid-area: actions; display: grid; gap: .5rem; grid-template-columns: repeat(6, 1fr); grid-auto-rows: minmax(2.75rem, 1fr); max-height: 100%; justify-self: end; width: min(100%, 15rem); }
-  #actions button { grid-column: span 2; }
-  #actions .wide { grid-column: span 6; }
-  #actions .half { grid-column: span 3; }
-  #actions .label { grid-column: span 6; color: var(--gray); font-size: .75rem; line-height: 1; align-self: end; text-align: center; }
-  #controls button {
-    display: flex; align-items: center; justify-content: center; margin: 0; padding: 0; min-width: 0;
-    border: 2px solid var(--slate); border-radius: 0; background: var(--night); color: var(--foam);
-    font: 700 1.05rem/1 var(--mono); touch-action: none; -webkit-tap-highlight-color: transparent; -webkit-appearance: none; appearance: none;
-  }
-  #controls button.enter { border-color: var(--amber); color: var(--amber); }
-  #controls button[data-held] { background: var(--amber); border-color: var(--amber); color: #050b1e; }
-  @media (orientation: landscape) {
-    .touch #stage { inset: env(safe-area-inset-top) auto 0 50%; transform: translateX(-50%); width: min(160dvh, calc(100vw - 23rem)); height: auto; }
-    .touch #controls { inset: 0; height: auto; grid-template: "pad . actions" 1fr / auto 1fr auto; pointer-events: none; }
-    .touch #controls button { pointer-events: auto; }
-    #pad { --button: clamp(2.5rem, 24dvh, 3.5rem); }
-    #actions { width: 9rem; grid-auto-rows: clamp(2rem, 14dvh, 3rem); align-content: center; gap: .3rem; }
-  }
+  .touch .hit, .touch #stage { touch-action: none; }
 </style>
 </head>
 <body>
-<div id="stage"><canvas id="game" tabindex="0" aria-label="Gitche Gumee game screen"></canvas></div>
-<div id="controls" hidden>
-  <div id="pad">
-    <button type="button" data-code="ArrowUp" data-key="ArrowUp" aria-label="Up">▲</button>
-    <button type="button" data-code="ArrowLeft" data-key="ArrowLeft" aria-label="Left">◀</button>
-    <button type="button" data-code="ArrowRight" data-key="ArrowRight" aria-label="Right">▶</button>
-    <button type="button" data-code="ArrowDown" data-key="ArrowDown" aria-label="Down">▼</button>
-  </div>
-  <div id="actions">
-    <button class="wide enter" type="button" data-code="Enter" data-key="Enter">ENTER</button>
-    <span class="label">PUMPS</span>
-    <button type="button" data-code="Digit1" data-key="1" aria-label="Pump 1">1</button>
-    <button type="button" data-code="Digit2" data-key="2" aria-label="Pump 2">2</button>
-    <button type="button" data-code="Digit3" data-key="3" aria-label="Pump 3">3</button>
-    <button type="button" data-code="Digit4" data-key="4" aria-label="Pump 4">4</button>
-    <button type="button" data-code="Digit5" data-key="5" aria-label="Pump 5">5</button>
-    <button type="button" data-code="Digit6" data-key="6" aria-label="Pump 6">6</button>
-    <button class="half" type="button" data-code="KeyR" data-key="r">REPAIR</button>
-    <button class="half" type="button" data-code="KeyN" data-key="n">SKIP</button>
-    <button class="half" type="button" data-code="KeyP" data-key="p">PAUSE</button>
-    <button class="half" type="button" data-code="KeyM" data-key="m">MUTE</button>
-  </div>
+<div id="console">
+  <canvas id="surface" aria-hidden="true"></canvas>
+  <div id="hits"></div>
+  <div id="stage" hidden><canvas id="game" tabindex="0" aria-label="Gitche Gumee game screen"></canvas></div>
 </div>
-<div id="intro">
-  <h1>Gitche Gumee</h1>
-  <img src="../img/freighter.png" width="384" height="120" alt="">
-  <p><span class="keyboard-only">Needs a keyboard and a browser with WebGL2.</span><span class="touch-only">Tap the game screen to move on, and use the on-screen buttons for the rest. Works either way up. Turn off silent mode to hear it.</span> The game has sound.</p>
-  <button id="start" type="button">Start the voyage</button>
-  <p id="error" role="alert" hidden></p>
-  <a href="../">Back to the site</a>
-</div>
+<h1 class="words">Gitche Gumee: The Last Voyage of the Edmund Fitzgerald</h1>
+<p id="error" class="words" role="alert"></p>
 <script type="module">
-  const intro = document.getElementById("intro");
-  const start = document.getElementById("start");
-  const error = document.getElementById("error");
+  const SEP = { s0: "#120a06", s1: "#21140c", s2: "#332014", s3: "#472d1c", s4: "#5f3f28", s5: "#7d5a3c", s6: "#a98660", s7: "#d8bd96", rust: "#5c2412", ember: "#6f3018", hull: "#3f1c10" };
+  const STYLES = {
+    bronze: { face: "#5c3c1e", hi: SEP.s5, lo: SEP.s1, ink: SEP.s7 },
+    engine: { face: "#6e5238", hi: "#8a6a4a", lo: SEP.s2, ink: "#ecd9b8" },
+    order: { face: SEP.ember, hi: "#8a4424", lo: SEP.hull, ink: SEP.s7 },
+    small: { face: SEP.s1, hi: SEP.s4, lo: SEP.s0, ink: SEP.s6 },
+    pump: { face: SEP.s1, hi: SEP.s4, lo: SEP.s0, ink: SEP.s7 },
+    held: { face: SEP.s7, hi: "#eddcbc", lo: SEP.s6, ink: SEP.s0 },
+  };
+  // The game's 5x7 font, copied from src/ui/font.rs. Characters start at space.
+  const GLYPHS = [[0,0,0,0,0,0,0],[4,4,4,4,4,0,4],[10,10,0,0,0,0,0],[10,10,31,10,31,10,10],[4,15,20,14,5,30,4],[24,25,2,4,8,19,3],[12,18,20,8,21,18,13],[4,4,0,0,0,0,0],[2,4,8,8,8,4,2],[8,4,2,2,2,4,8],[0,4,21,14,21,4,0],[0,4,4,31,4,4,0],[0,0,0,0,4,4,8],[0,0,0,31,0,0,0],[0,0,0,0,0,0,4],[0,1,2,4,8,16,0],[14,17,19,21,25,17,14],[4,12,4,4,4,4,14],[14,17,1,2,4,8,31],[31,2,4,2,1,17,14],[2,6,10,18,31,2,2],[31,16,30,1,1,17,14],[6,8,16,30,17,17,14],[31,1,2,4,8,8,8],[14,17,17,14,17,17,14],[14,17,17,15,1,2,12],[0,4,0,0,0,4,0],[0,4,0,0,4,4,8],[2,4,8,16,8,4,2],[0,0,31,0,31,0,0],[8,4,2,1,2,4,8],[14,17,1,2,4,0,4],[14,17,1,13,21,21,14],[14,17,17,31,17,17,17],[30,17,17,30,17,17,30],[14,17,16,16,16,17,14],[30,17,17,17,17,17,30],[31,16,16,30,16,16,31],[31,16,16,30,16,16,16],[14,17,16,23,17,17,15],[17,17,17,31,17,17,17],[14,4,4,4,4,4,14],[7,2,2,2,2,18,12],[17,18,20,24,20,18,17],[16,16,16,16,16,16,31],[17,27,21,21,17,17,17],[17,25,21,19,17,17,17],[14,17,17,17,17,17,14],[30,17,17,30,16,16,16],[14,17,17,17,21,18,13],[30,17,17,30,20,18,17],[15,16,16,14,1,1,30],[31,4,4,4,4,4,4],[17,17,17,17,17,17,14],[17,17,17,17,17,10,4],[17,17,17,21,21,21,10],[17,17,10,4,10,17,17],[17,17,17,10,4,4,4],[31,1,2,4,8,16,31],[14,8,8,8,8,8,14],[0,16,8,4,2,1,0],[14,2,2,2,2,2,14],[4,10,17,0,0,0,0],[0,0,0,0,0,0,31]];
+
+  const host = document.getElementById("console");
+  const surface = document.getElementById("surface");
+  const hits = document.getElementById("hits");
+  const stage = document.getElementById("stage");
   const canvas = document.getElementById("game");
-  const controls = document.getElementById("controls");
+  const errorText = document.getElementById("error");
+  const touch = matchMedia("(pointer: coarse)").matches;
+  const ship = new Image();
+  ship.src = "../img/freighter.png";
+
+  let steerRight = false;
+  try { steerRight = localStorage.getItem("steer-side") === "right"; } catch {}
+  let mode = "intro"; // "intro", then "console" on a touch screen or "keys" with a keyboard.
+  let status = "ready"; // "ready", "loading" or "error".
+  let S = 3, W = 0, H = 0, buttons = [], plates = [], frame = null, intro = null;
+  const cell = (pixels) => Math.ceil(pixels / S); // Whole console pixels for a size on screen.
 
   // Mobile browsers can leave audio suspended, so keep the game's audio contexts
   // and wake them on every tap.
@@ -122,76 +93,435 @@
   const send = (type, { key, code }) => canvas.dispatchEvent(new KeyboardEvent(type, {
     key, code, bubbles: true, cancelable: true,
   }));
-  function release(button) {
-    if (!button.hasAttribute("data-held")) return;
-    button.removeAttribute("data-held");
-    send("keyup", button.dataset);
-  }
-  const buttons = [...controls.querySelectorAll("button")];
-  for (const button of buttons) {
-    button.addEventListener("pointerdown", (event) => {
-      event.preventDefault();
-      button.setPointerCapture(event.pointerId);
-      if (button.hasAttribute("data-held")) return;
-      button.setAttribute("data-held", "");
-      send("keydown", button.dataset);
+
+  // Drawing. Everything sits on one coarse grid, so the console is all whole pixels.
+  const textWidth = (text, k = 1) => text.length * 6 * k - k;
+  function drawText(g, text, x, y, color, k = 1) {
+    g.fillStyle = color;
+    [...text.toUpperCase()].forEach((character, i) => {
+      const glyph = GLYPHS[character.charCodeAt(0) - 32] || GLYPHS[0];
+      glyph.forEach((row, gy) => {
+        for (let gx = 0; gx < 5; gx++) if (row & (0x10 >> gx)) g.fillRect(x + (i * 6 + gx) * k, y + gy * k, k, k);
+      });
     });
-    for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) {
-      button.addEventListener(type, () => release(button));
-    }
-    button.addEventListener("contextmenu", (event) => event.preventDefault());
   }
-  const releaseAll = () => buttons.forEach(release);
+  function wrap(text, columns) {
+    const lines = [];
+    let line = "";
+    for (const word of text.split(" ")) {
+      if (line && line.length + word.length + 1 > columns) { lines.push(line); line = word; }
+      else line = line ? `${line} ${word}` : word;
+    }
+    if (line) lines.push(line);
+    return lines;
+  }
+  function arrow(g, direction, cx, cy, n, color) {
+    g.fillStyle = color;
+    for (let i = 0; i < n; i++) {
+      const span = i * 2 + 1;
+      if (direction === "up") g.fillRect(cx - i, cy - n + 1 + i, span, 1);
+      if (direction === "down") g.fillRect(cx - i, cy + n - 1 - i, span, 1);
+      if (direction === "left") g.fillRect(cx - n + 1 + i, cy - i, 1, span);
+      if (direction === "right") g.fillRect(cx + n - 1 - i, cy - i, 1, span);
+    }
+  }
+  function rivet(g, x, y, streak) {
+    g.fillStyle = SEP.s0; g.fillRect(x, y, 3, 3);
+    g.fillStyle = SEP.s4; g.fillRect(x, y, 2, 2);
+    g.fillStyle = SEP.s5; g.fillRect(x, y, 1, 1);
+    if (streak) { g.fillStyle = SEP.rust; g.fillRect(x + 1, y + 3, 1, streak); }
+  }
+  // Riveted plates, with worn paint dithered along each lower edge.
+  function drawSteel(g) {
+    const plate = 44;
+    g.fillStyle = SEP.s2; g.fillRect(0, 0, W, H);
+    for (let y = 0; y < H; y += plate) {
+      g.fillStyle = SEP.s1;
+      for (let dy = 34; dy < plate - 1; dy++) {
+        const step = dy < 39 ? 4 : 2;
+        for (let x = (dy % 2) * (step / 2); x < W; x += step) g.fillRect(x, y + dy, 1, 1);
+      }
+      g.fillStyle = SEP.s0; g.fillRect(0, y + plate - 1, W, 1);
+      g.fillStyle = SEP.s3; g.fillRect(0, y + plate, W, 1);
+      for (let x = 4; x < W; x += 16) rivet(g, x, y + plate + 2, (x * 7 + y) % 5 === 0 ? 3 + (x + y) % 5 : 0);
+    }
+  }
+  function drawPlate(g, [text, x, y, w]) {
+    g.fillStyle = SEP.s0; g.fillRect(x, y, w, 11);
+    g.fillStyle = SEP.s3; g.fillRect(x, y, w, 10);
+    drawText(g, text, x + Math.floor((w - textWidth(text)) / 2), y + 2, SEP.s7);
+    if (w < textWidth(text) + 8) return;
+    g.fillStyle = SEP.s5;
+    g.fillRect(x + 1, y + 4, 1, 1); g.fillRect(x + w - 2, y + 4, 1, 1);
+  }
+  function drawFrame(g) {
+    const { x, y, w, h } = frame;
+    g.fillStyle = SEP.s0; g.fillRect(x, y, w, h);
+    g.fillStyle = SEP.s4; g.fillRect(x + 1, y + 1, w - 2, h - 2);
+    g.fillStyle = SEP.s5; g.fillRect(x + 1, y + 1, w - 2, 1); g.fillRect(x + 1, y + 1, 1, h - 2);
+    g.fillStyle = SEP.s1; g.fillRect(x + 1, y + h - 2, w - 2, 1); g.fillRect(x + w - 2, y + 1, 1, h - 2);
+  }
+  function drawIntro(g) {
+    const n = intro;
+    const blockH = n.shipY + 34 - n.titleY + 6, bx = n.m - 3, by = n.titleY - 3, bw = n.colW + 6;
+    g.fillStyle = SEP.s0; g.fillRect(bx - 1, by - 1, bw + 2, blockH + 2);
+    g.fillStyle = SEP.hull; g.fillRect(bx, by, bw, blockH);
+    n.titleLines.forEach((line, i) => drawText(g, line, n.m + Math.floor((n.colW - textWidth(line, 2)) / 2), n.titleY + i * 16, SEP.s7, 2));
+    n.subtitle.forEach((line, i) => drawText(g, line, n.m + Math.floor((n.colW - textWidth(line)) / 2), n.subY + i * 9, SEP.s6));
+    g.fillStyle = SEP.s1; g.fillRect(bx, n.shipY - 1, bw, 34);
+    if (ship.complete && ship.naturalWidth) g.drawImage(ship, n.m + Math.floor((n.colW - 96) / 2), n.shipY);
+    for (let x = bx; x < bx + bw; x++) { g.fillStyle = (x >> 3) % 2 ? SEP.s5 : SEP.s3; g.fillRect(x, n.shipY + 30, 1, 2); }
+    g.fillStyle = SEP.s3; g.fillRect(bx, n.shipY + 32, bw, 1);
+    g.fillStyle = SEP.s1; g.fillRect(n.rightX - 2, n.blurbY - 2, n.colW + 4, n.blurb.length * 9 + 2);
+    n.blurb.forEach((line, i) => drawText(g, line, n.rightX, n.blurbY + i * 9, SEP.s7));
+  }
+  function drawButton(g, b) {
+    const isHeld = held.has(b.id);
+    const s = STYLES[isHeld ? "held" : b.style], drop = isHeld ? 1 : 0;
+    const { x, y, w, h } = b;
+    g.fillStyle = SEP.s0; g.fillRect(x, y, w, h);
+    g.fillStyle = s.face; g.fillRect(x + 1, y + 1, w - 2, h - 2);
+    g.fillStyle = isHeld ? s.lo : s.hi; g.fillRect(x + 1, y + 1, w - 2, 1); g.fillRect(x + 1, y + 1, 1, h - 2);
+    g.fillStyle = isHeld ? s.hi : s.lo; g.fillRect(x + 1, y + h - 2, w - 2, 1); g.fillRect(x + w - 2, y + 1, 1, h - 2);
+    if (b.icon || (b.big && h >= 24)) {
+      for (const [sx, sy] of [[x + 3, y + 3], [x + w - 6, y + 3], [x + 3, y + h - 6], [x + w - 6, y + h - 6]]) {
+        g.fillStyle = s.lo; g.fillRect(sx, sy, 3, 3);
+        g.fillStyle = s.ink; g.fillRect(sx, sy + 1, 3, 1);
+      }
+    }
+    const cx = x + Math.floor(w / 2);
+    if (b.icon) {
+      const n = Math.max(5, Math.min(14, Math.floor(Math.min(w, h - 12) * 0.3)));
+      const labelled = textWidth(b.text) + 4 <= w;
+      const top = y + Math.floor((h - n * 2 - (labelled ? 10 : 0)) / 2) + drop;
+      arrow(g, b.icon, cx, top + n, n, s.ink);
+      if (labelled) drawText(g, b.text, cx - Math.floor(textWidth(b.text) / 2), top + n * 2 + 3, s.ink);
+    } else {
+      const k = b.big && w > textWidth(b.text, 2) + 8 && h >= 20 ? 2 : 1;
+      drawText(g, b.text, cx - Math.floor(textWidth(b.text, k) / 2), y + Math.floor((h - 7 * k) / 2) + drop, s.ink, k);
+    }
+  }
+  function draw() {
+    if (mode === "keys" || !W) return;
+    const g = surface.getContext("2d");
+    drawSteel(g);
+    if (frame) drawFrame(g);
+    if (mode === "intro") drawIntro(g);
+    plates.forEach((plate) => drawPlate(g, plate));
+    buttons.forEach((b) => drawButton(g, b));
+  }
+  ship.addEventListener("load", draw);
+
+  // Button sets, shared by the two console layouts.
+  const pump = (i, x, y, w, h) => ({ id: `pump${i}`, x, y, w, h, text: String(i), style: "pump", key: String(i), code: `Digit${i}`, label: `Pump ${i}` });
+  const WORDS = {
+    REPAIR: { key: "r", code: "KeyR" },
+    SKIP: { key: "n", code: "KeyN" },
+    PAUSE: { key: "p", code: "KeyP" },
+    MUTE: { key: "m", code: "KeyM" },
+    SWAP: { action: () => setSide(!steerRight), label: "Swap thumb sides" },
+  };
+  const word = (name, x, y, w, h) => ({ id: name, x, y, w, h, text: name, style: "small", ...WORDS[name] });
+  const enter = (x, y, w, h) => ({ id: "enter", x, y, w, h, text: "ENTER", style: "order", big: true, key: "Enter", code: "Enter" });
+  function thumbButtons(steerX, steerW, speedX, speedW, steerY, speedY, bottom) {
+    const half = Math.floor((steerW - 2) / 2), steerH = bottom - steerY;
+    const speedH = Math.floor((bottom - speedY - 2) / 2);
+    buttons.push(
+      { id: "left", group: "steer", x: steerX, y: steerY, w: half, h: steerH, icon: "left", text: "PORT", style: "bronze", key: "ArrowLeft", code: "ArrowLeft", label: "Steer left, to port" },
+      { id: "right", group: "steer", x: steerX + half + 2, y: steerY, w: steerW - half - 2, h: steerH, icon: "right", text: "STBD", style: "bronze", key: "ArrowRight", code: "ArrowRight", label: "Steer right, to starboard" },
+      { id: "up", x: speedX, y: speedY, w: speedW, h: speedH, icon: "up", text: "FAST", style: "engine", key: "ArrowUp", code: "ArrowUp", label: "Faster, or menu up" },
+      { id: "down", x: speedX, y: speedY + speedH + 2, w: speedW, h: bottom - speedY - speedH - 2, icon: "down", text: "SLOW", style: "engine", key: "ArrowDown", code: "ArrowDown", label: "Slower, or menu down" },
+    );
+  }
+
+  // Upright: picture on top, small buttons under it, then ENTER, then a thumb in each corner.
+  function layoutTall() {
+    const m = cell(8), inner = W - m * 2, row = cell(46), enterH = cell(62), minThumb = cell(150);
+    const need = 12 + row * 3 + 4 + 3 + enterH + 3 + 12 + minThumb + 4;
+    const frameH = Math.max(cell(150), Math.min(Math.floor((inner - 6) * 5 / 8) + 6, H - need - 6));
+    frame = { x: m, y: 3, w: inner, h: frameH };
+    let y = 3 + frameH + 3;
+    plates.push(["PUMPS", m, y, inner]);
+    y += 12;
+    const pumpW = Math.floor((inner - 10) / 6);
+    for (let i = 1; i <= 6; i++) {
+      const x = m + (i - 1) * (pumpW + 2);
+      buttons.push(pump(i, x, y, i === 6 ? m + inner - x : pumpW, row));
+    }
+    y += row + 2;
+    const half = Math.floor((inner - 2) / 2), third = Math.floor((inner - 4) / 3);
+    buttons.push(word("REPAIR", m, y, half, row), word("SKIP", m + half + 2, y, inner - half - 2, row));
+    y += row + 2;
+    buttons.push(
+      word("PAUSE", m, y, third, row),
+      word("MUTE", m + third + 2, y, third, row),
+      word("SWAP", m + 2 * (third + 2), y, inner - 2 * (third + 2), row),
+    );
+    y += row + 3;
+    buttons.push(enter(m, y, inner, enterH));
+    y += enterH + 3;
+    const speedW = Math.floor(inner * 0.4), steerW = inner - speedW - 4;
+    const steerX = steerRight ? m + speedW + 4 : m, speedX = steerRight ? m : m + steerW + 4;
+    plates.push(["HELM", steerX, y, steerW], ["ENGINE", speedX, y, speedW]);
+    y += 12;
+    thumbButtons(steerX, steerW, speedX, speedW, y, y, H - 4);
+  }
+
+  // Sideways: the picture takes the height, with every small button on one line across the bottom.
+  const STRIP_WORDS = 40 + 28 + 34 + 28 + 28 + 20;
+  const stripNeed = (scale) => 6 * Math.ceil(36 / scale) + STRIP_WORDS + 32;
+  function layoutWide() {
+    const m = cell(8), inner = W - m * 2, stripH = cell(40), enterH = cell(60), minSide = cell(112);
+    const stripY = H - 3 - stripH;
+    let frameH = stripY - 6;
+    let frameW = Math.floor((frameH - 6) * 8 / 5) + 6;
+    let side = Math.floor((inner - frameW - 6) / 2);
+    if (side < minSide) {
+      side = minSide;
+      frameW = inner - side * 2 - 6;
+      frameH = Math.floor((frameW - 6) * 5 / 8) + 6;
+    }
+    const leftX = m, rightX = W - m - side, midX = leftX + side + 3;
+    const steerX = steerRight ? rightX : leftX, speedX = steerRight ? leftX : rightX;
+    frame = { x: midX, y: 3 + Math.floor((stripY - 6 - frameH) / 2), w: rightX - 3 - midX, h: frameH };
+
+    let x = m, need = stripNeed(S);
+    if (need <= inner) {
+      plates.push(["PUMP", x, stripY + Math.floor((stripH - 11) / 2), 30]);
+      x += 32;
+    } else {
+      need -= 32;
+    }
+    const extra = Math.floor(Math.max(0, inner - need) / 11), digit = Math.ceil(36 / S) + extra;
+    for (let i = 1; i <= 6; i++) {
+      buttons.push(pump(i, x, stripY, digit, stripH));
+      x += digit + 2;
+    }
+    const words = [["REPAIR", 40], ["SKIP", 28], ["PAUSE", 34], ["MUTE", 28], ["SWAP", 28]];
+    words.forEach(([name, least], i) => {
+      const w = i === words.length - 1 ? m + inner - x : least + extra;
+      buttons.push(word(name, x, stripY, w, stripH));
+      x += w + 2;
+    });
+
+    plates.push(["HELM", steerX, 3, side]);
+    buttons.push(enter(speedX, 3, side, enterH));
+    const speedPlate = 3 + enterH + 3;
+    plates.push(["ENGINE", speedX, speedPlate, side]);
+    thumbButtons(steerX, side, speedX, side, 15, speedPlate + 12, stripY - 3);
+  }
+
+  // The start screen, in one column upright and two sideways. Returns the height it needs.
+  function layoutIntro(wide) {
+    const m = cell(8), rowH = cell(46), startH = cell(62), linkH = cell(40);
+    const colW = wide ? Math.floor((W - m * 3) / 2) : W - m * 2;
+    const rightX = wide ? m * 2 + colW : m, columns = Math.floor((colW + 1) / 6);
+    const blurbText = status === "error"
+      ? "The game could not start in this browser. Reload the page to try again."
+      : touch
+        ? "Tap the game screen to move on, and use the buttons for the rest. Works either way up. Turn off silent mode to hear it."
+        : "Needs a keyboard and a browser with WebGL2. The game has sound.";
+    const blurb = wrap(blurbText, columns);
+    const subtitle = wrap("The last voyage of the Edmund Fitzgerald", columns);
+    const titleLines = colW >= textWidth("GITCHE GUMEE", 2) ? ["GITCHE GUMEE"] : ["GITCHE", "GUMEE"];
+    const hullH = titleLines.length * 16 + 2 + subtitle.length * 9 + 4 + 34 + 6;
+    const choice = touch && status !== "error" ? 12 + rowH + 4 : 0;
+    const start = status !== "error" ? startH + 4 : 0;
+    const orders = blurb.length * 9 + 6 + choice + start;
+    const total = wide ? Math.max(hullH + 3 + linkH, orders) : hullH + 8 + orders + linkH;
+    let y = Math.max(5, Math.floor((H - total) / 2));
+    const top = y;
+    intro = { titleLines, subtitle, blurb, m, colW, rightX, titleY: y };
+    y += titleLines.length * 16 + 2;
+    intro.subY = y;
+    y += subtitle.length * 9 + 4;
+    intro.shipY = y;
+    y += 34;
+    const linkX = m;
+    const linkY = wide ? y + 6 : 0;
+    y = wide ? top : y + 8;
+    intro.blurbY = y;
+    y += blurb.length * 9 + 6;
+    if (choice) {
+      plates.push(["HELM ON", rightX, y, colW]);
+      y += 12;
+      const half = Math.floor((colW - 2) / 2);
+      const side = (name, right, x, w) => ({ id: name, x, y, w, h: rowH, text: name, style: right === steerRight ? "bronze" : "small", pressed: right === steerRight, action: () => setSide(right), label: `Steer with the ${name.toLowerCase()} thumb` });
+      buttons.push(side("LEFT", false, rightX, half), side("RIGHT", true, rightX + half + 2, colW - half - 2));
+      y += rowH + 4;
+    }
+    if (start) {
+      const loading = status === "loading";
+      buttons.push({ id: "start", x: rightX, y, w: colW, h: startH, text: loading ? "LOADING..." : columns >= 16 ? "START THE VOYAGE" : "START", style: "order", action: loading ? null : begin, label: loading ? "Loading" : "Start the voyage" });
+      y += startH + 4;
+    }
+    buttons.push({ id: "back", x: linkX, y: wide ? linkY : y, w: colW, h: linkH, text: "BACK TO THE SITE", style: "small", href: "../", label: "Back to the site" });
+    return total;
+  }
+
+  function placeHits() {
+    hits.textContent = "";
+    for (const b of buttons) {
+      const el = document.createElement(b.href ? "a" : "button");
+      el.className = "hit";
+      if (b.href) el.href = b.href; else el.type = "button";
+      el.dataset.id = b.id;
+      el.setAttribute("aria-label", b.label || b.text);
+      if (b.pressed !== undefined) el.setAttribute("aria-pressed", String(b.pressed));
+      el.style.cssText = `left:${b.x * S}px;top:${b.y * S}px;width:${b.w * S}px;height:${b.h * S}px`;
+      hits.append(el);
+    }
+    if (frame) {
+      stage.style.cssText = `left:${(frame.x + 3) * S}px;top:${(frame.y + 3) * S}px;width:${(frame.w - 6) * S}px;height:${(frame.h - 6) * S}px`;
+    }
+  }
+
+  function layout() {
+    releaseAll();
+    const w = host.clientWidth, h = host.clientHeight;
+    if (!w || !h) return;
+    document.documentElement.classList.toggle("playing-keys", mode === "keys");
+    if (mode === "keys") { stage.style.cssText = "left:0;top:0;width:100%;height:100%"; stage.hidden = false; return; }
+    const wide = w > h * 1.15;
+    const size = (scale) => { S = scale; W = Math.ceil(w / S); H = Math.ceil(h / S); buttons = []; plates = []; frame = null; };
+    let scale = Math.min(6, Math.max(2, wide ? Math.floor(h / 120) : Math.floor(w / 130)));
+    if (mode === "intro") {
+      size(scale);
+      while (layoutIntro(wide) + 4 > H && scale > 2) size(--scale);
+    } else {
+      if (wide) while (scale > 2 && Math.ceil(w / scale) - 2 * Math.ceil(8 / scale) < stripNeed(scale)) scale--;
+      size(scale);
+      if (wide) layoutWide(); else layoutTall();
+    }
+    stage.hidden = mode !== "console";
+    surface.width = W; surface.height = H;
+    surface.style.width = `${W * S}px`; surface.style.height = `${H * S}px`;
+    placeHits();
+    draw();
+  }
+  function setSide(right) {
+    steerRight = right;
+    try { localStorage.setItem("steer-side", right ? "right" : "left"); } catch {}
+    layout();
+  }
+
+  // Input. Each finger holds one button, and a steering finger can slide across both plates.
+  const held = new Map(); // Button id to the fingers on it, with the key it sends.
+  const fingers = new Map(); // Pointer id to button id.
+  const buttonById = (id) => buttons.find((b) => b.id === id);
+  function press(b) {
+    const entry = held.get(b.id);
+    if (entry) { entry.count++; return; }
+    held.set(b.id, { count: 1, key: b.key, code: b.code });
+    if (b.code) send("keydown", b);
+    draw();
+  }
+  function release(id) {
+    const entry = held.get(id);
+    if (!entry) return;
+    if (--entry.count > 0) return;
+    held.delete(id);
+    if (entry.code) send("keyup", entry);
+    draw();
+  }
+  function releaseAll() {
+    fingers.clear();
+    for (const [id, entry] of [...held]) { entry.count = 1; release(id); }
+  }
+  hits.addEventListener("pointerdown", (event) => {
+    const b = buttonById(event.target.dataset.id);
+    if (!b || b.href) return;
+    event.preventDefault();
+    event.target.setPointerCapture(event.pointerId);
+    fingers.set(event.pointerId, b.id);
+    press(b);
+  });
+  hits.addEventListener("pointermove", (event) => {
+    const b = buttonById(fingers.get(event.pointerId));
+    if (!b || b.group !== "steer") return;
+    const [left, right] = buttons.filter((other) => other.group === "steer");
+    const middle = (left.x + left.w + right.x) / 2 * S + host.getBoundingClientRect().left;
+    const next = event.clientX < middle ? left : right;
+    if (next === b) return;
+    release(b.id);
+    press(next);
+    fingers.set(event.pointerId, next.id);
+  });
+  for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) {
+    hits.addEventListener(type, (event) => {
+      const id = fingers.get(event.pointerId);
+      if (id === undefined) return;
+      fingers.delete(event.pointerId);
+      release(id);
+    });
+  }
+  // A click is what lets the browser start sound, so these orders wait for one.
+  hits.addEventListener("click", (event) => {
+    const b = buttonById(event.target.dataset.id);
+    if (b && b.action) b.action();
+  });
+  // A key on a focused button works it like a finger would.
+  hits.addEventListener("keydown", (event) => {
+    const b = buttonById(event.target.dataset.id);
+    if (!b || !b.code || (event.key !== "Enter" && event.key !== " ")) return;
+    event.preventDefault();
+    if (!event.repeat) press(b);
+  });
+  hits.addEventListener("keyup", (event) => {
+    const b = buttonById(event.target.dataset.id);
+    if (!b || !b.code || (event.key !== "Enter" && event.key !== " ")) return;
+    event.preventDefault();
+    release(b.id);
+  });
+  hits.addEventListener("contextmenu", (event) => event.preventDefault());
   addEventListener("blur", releaseAll);
   document.addEventListener("visibilitychange", releaseAll);
 
-  // Stop the page from scrolling or zooming under the player's thumbs.
-  const touch = matchMedia("(pointer: coarse)").matches;
   if (touch) {
     document.documentElement.classList.add("touch");
-    controls.hidden = false;
     document.addEventListener("touchmove", (event) => event.preventDefault(), { passive: false });
     document.addEventListener("gesturestart", (event) => event.preventDefault());
 
     // A tap on the game picture is Enter. Only the picture, so that a thumb
     // missing a pump button can't give the order to sail.
-    const enter = { key: "Enter", code: "Enter" };
+    const enterKey = { key: "Enter", code: "Enter" };
     const taps = new Set();
-    const stage = document.getElementById("stage");
     stage.addEventListener("pointerdown", (event) => {
       event.preventDefault();
-      if (taps.size === 0) send("keydown", enter);
+      if (taps.size === 0) send("keydown", enterKey);
       taps.add(event.pointerId);
     });
     for (const type of ["pointerup", "pointercancel"]) {
       stage.addEventListener(type, (event) => {
-        if (taps.delete(event.pointerId) && taps.size === 0) send("keyup", enter);
+        if (taps.delete(event.pointerId) && taps.size === 0) send("keyup", enterKey);
       });
     }
   }
 
   // Starting from a click lets the browser play the game's sound.
   async function begin() {
-    start.disabled = true;
-    start.textContent = "Loading...";
-    error.hidden = true;
+    status = "loading";
+    errorText.textContent = "";
+    layout();
     try {
       const game = await import("./game.js");
-      intro.hidden = true;
+      mode = touch ? "console" : "keys";
+      layout();
       canvas.focus();
       await game.default();
     } catch (reason) {
       // winit leaves its event loop by throwing this on purpose.
       if (String(reason).includes("Using exceptions for control flow")) return;
       console.error(reason);
-      intro.hidden = false;
-      start.hidden = true;
-      error.textContent = "The game could not start in this browser. Reload the page to try again.";
-      error.hidden = false;
+      mode = "intro";
+      status = "error";
+      errorText.textContent = "The game could not start in this browser. Reload the page to try again.";
+      layout();
     }
   }
 
-  start.addEventListener("click", begin);
+  new ResizeObserver(layout).observe(host);
+  layout();
   if (location.hash === "#start") begin();
 </script>
 </body>

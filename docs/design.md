@@ -66,3 +66,15 @@ up, `DOWNBOUND_SHOT_DIR` saves screenshots, and `DOWNBOUND_SEED` fixes the seed.
 
 ## To do
 
+## Play page console
+
+The touch controls and start screen in `site/play/index.html` are drawn on one
+low-resolution canvas, with invisible buttons over it for input and screen readers.
+
+- One thumb steers and the other sets the speed. The player can swap the sides,
+  and the choice is kept in browser storage.
+- Everything around the game picture uses a dark rust-sepia ramp so that it
+  recedes. These colors are outside the game's palette and stay on this page. The
+  rule in `ui/palette.rs` still holds for everything the game draws.
+- On small browser screens the game scales to fit its frame, even at fractional
+  sizes, so that the picture is as large as the layout allows.

@@ -30,7 +30,9 @@ ship. There is no score and there are no saves: each voyage lasts one sitting.
 | Any screen | P or Esc to pause or resume (Space or Enter also resumes). M to mute or unmute. |
 
 In the browser on a phone or tablet, on-screen buttons take the place of the
-keys, and a tap on the game screen acts as Enter.
+keys, and a tap on the game screen acts as Enter. One thumb steers and the other
+sets the speed. The start screen and the SWAP button trade the two sides for
+left-handed players.
 
 ## Build and run
 
